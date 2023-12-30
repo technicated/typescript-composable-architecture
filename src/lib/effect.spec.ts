@@ -1,7 +1,7 @@
 import test, { ExecutionContext } from 'ava'
 import { delay, of } from 'rxjs'
 import { TestScheduler } from 'rxjs/testing'
-import { Effect } from './effect'
+import { Effect } from '..'
 
 const makeTestScheduler = (t: ExecutionContext<unknown>) =>
   new TestScheduler((actual, expected) => t.deepEqual(actual, expected))
