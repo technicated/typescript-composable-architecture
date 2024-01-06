@@ -23,7 +23,9 @@
     "typedoc",
     "untracked",
 
-    "technicated"
+    "immer",
+    "technicated",
+    "uuidv"
   ],
   "flagWords": [],
   "ignorePaths": [
