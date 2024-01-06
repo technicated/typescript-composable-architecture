@@ -23,6 +23,8 @@
     "typedoc",
     "untracked",
 
+    "hashable",
+    "hasher",
     "immer",
     "technicated",
     "uuidv"

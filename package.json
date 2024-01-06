@@ -26,6 +26,7 @@
   "dependencies": {
     "@technicated/ts-enums": "^0.9.4",
     "deep-object-diff": "^1.1.9",
+    "hash-it": "^6.0.0",
     "immer": "^10.0.3",
     "lodash": "^4.17.21",
     "rxjs": "^7.0.0",
