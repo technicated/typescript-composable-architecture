@@ -59,7 +59,8 @@
       "compile": false
     },
     "files": [
-      "!build/module/**"
+      "!build/module/**",
+      "!src/lib/schedulers/test-scheduler.ts"
     ]
   },
   "prettier": {
