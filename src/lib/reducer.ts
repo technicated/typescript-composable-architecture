@@ -1,3 +1,4 @@
+import { current } from 'immer'
 import { Effect } from './effect'
 
 export type ReducerBuilder<State extends object, Action> =
@@ -17,6 +18,10 @@ export abstract class Reducer<in out State extends object, in out Action> {
 
   reduce(state: State, action: Action): Effect<Action> {
     return buildReducer(this.body()).reduce(state, action)
+  }
+
+  snapshot(state: State): State {
+    return current(state)
   }
 }
 
