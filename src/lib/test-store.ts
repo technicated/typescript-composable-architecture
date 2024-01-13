@@ -7,6 +7,8 @@ import { Effect } from './effect'
 import { buildReducer, Reducer, ReducerBuilder } from './reducer'
 import { Store } from './store'
 
+class TestStoreError extends Error {}
+
 type TestAction<Action> =
   | { case: 'receive'; action: Action }
   | { case: 'send'; action: Action }
@@ -79,11 +81,7 @@ export class TestStore<State extends object, Action> {
   private readonly reducer: TestReducer<State, Action>
   private readonly store: Store<State, TestAction<Action>>
 
-  constructor(
-    private readonly fail: (message: string) => void,
-    initialState: State,
-    reducer: ReducerBuilder<State, Action>,
-  ) {
+  constructor(initialState: State, reducer: ReducerBuilder<State, Action>) {
     const r = new TestReducer(buildReducer(reducer), initialState)
 
     this.reducer = r
@@ -96,19 +94,19 @@ export class TestStore<State extends object, Action> {
         this.reducer.receivedActions.map(({ action }) => action),
       )
 
-      this.fail(
+      throw new TestStoreError(
         `The store received ${this.reducer.receivedActions.length} unexpected \
 action(s) after this one: …
-    
+
 Unhandled actions: ${actions}`,
       )
     }
 
     if (this.reducer.inFlightEffects.size > 0) {
-      this.fail(
+      throw new TestStoreError(
         `An effect returned for this action is still running. It must complete \
 before the end of the test. …
-    
+
 To fix, inspect any effects the reducer returns for this action and ensure \
 that all of them complete by the end of the test. There are a few reasons why \
 an effect may not have completed:
@@ -141,7 +139,7 @@ etc.), then make sure those effects are torn down by marking the effect \
 
     if (this.reducer.receivedActions.length === 0) {
       if (this.reducer.inFlightEffects.size > 0) {
-        this.fail(
+        throw new TestStoreError(
           'There are effects in-flight. If the effect that delivers this \
 action uses a scheduler (via "timer", "interval", "delay", etc.), make sure \
 that you wait enough time for it to perform the effect. If you are using a \
@@ -149,7 +147,7 @@ test scheduler, advance it so that the effects may complete, or consider using \
 an immediate scheduler to immediately perform the effect instead.',
         )
       } else {
-        this.fail(
+        throw new TestStoreError(
           'There are no in-flight effects that could deliver this action. \
 Could the effect you expected to deliver this action have been cancelled?',
         )
@@ -166,14 +164,12 @@ Could the effect you expected to deliver this action have been cancelled?',
         this.reducer.receivedActions.map(({ action }) => action),
       )
 
-      this.fail(
+      throw new TestStoreError(
         `Must handle ${this.reducer.receivedActions.length} received action(s) \
 before sending an action.
-    
+
 Unhandled actions: ${actions}`,
       )
-
-      return
     }
 
     const expectedState = this.reducer.state
@@ -196,7 +192,11 @@ Unhandled actions: ${actions}`,
       )
       this.reducer.state = currentState
     } catch (error) {
-      this.fail(`Threw error: ${error}`)
+      if (error instanceof TestStoreError) {
+        throw error
+      } else {
+        throw new TestStoreError(`Threw error: ${error}`)
+      }
     }
   }
 
@@ -208,15 +208,21 @@ Unhandled actions: ${actions}`,
     const current = cloneDeep(expected)
 
     const expectationFailure = (expected: State): void => {
-      this.fail(
-        `${prettyPrint(detailedDiff(expected as object, actual as object))}`,
+      const messageHeading = updateStateToExpectedResult
+        ? 'A state change does not match expectation'
+        : 'State was not expected to change, but a change occurred'
+
+      throw new TestStoreError(
+        `${messageHeading}:
+
+${prettyPrint(detailedDiff(expected as object, actual as object))}`,
       )
     }
 
     const tryUnnecessaryModifyFailure = (): void => {
       if (isEqual(expected, current) && updateStateToExpectedResult) {
-        this.fail(`Expected state to change, but no change occurred.
-    
+        throw new TestStoreError(`Expected state to change, but no change occurred.
+
 The trailing closure made no observable modifications to state. If no change to state is \
 expected, omit the trailing closure.`)
       }
@@ -240,10 +246,10 @@ expected, omit the trailing closure.`)
     updateStateToExpectedResult?: (state: State) => void,
   ): void {
     if (this.reducer.receivedActions.length === 0) {
-      return this.fail(
-        `Expected to receive the following action, but didn't: ${prettyPrint(
-          action,
-        )}`,
+      throw new TestStoreError(
+        `Expected to receive the following action, but didn't: …
+
+${prettyPrint(action)}`,
       )
     }
 
@@ -252,10 +258,10 @@ expected, omit the trailing closure.`)
       this.reducer.receivedActions.shift()!
 
     if (!isEqual(action, receivedAction)) {
-      return this.fail(
-        `Received unexpected action before this one: ${prettyPrint(
-          receivedAction,
-        )}`,
+      throw new TestStoreError(
+        `Received unexpected action: …
+
+${prettyPrint(receivedAction)}`,
       )
     }
 
@@ -268,7 +274,11 @@ expected, omit the trailing closure.`)
         updateStateToExpectedResult,
       )
     } catch (error) {
-      this.fail(`Threw error ${error}`)
+      if (error instanceof TestStoreError) {
+        throw error
+      } else {
+        throw new TestStoreError(`Threw error ${error}`)
+      }
     }
 
     this.reducer.state = state

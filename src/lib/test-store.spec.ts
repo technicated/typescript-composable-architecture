@@ -1,6 +1,6 @@
 import { Case, makeEnum } from '@technicated/ts-enums'
 import test from 'ava'
-import { interval, map, of, timer } from 'rxjs'
+import { interval, map, NEVER, of, timer } from 'rxjs'
 import {
   Effect,
   Reduce,
@@ -39,7 +39,7 @@ test('TestStore, no effects', async (t) => {
     }
   }
 
-  const testStore = new TestStore(t.fail, State(), new CounterReducer())
+  const testStore = new TestStore(State(), new CounterReducer())
 
   await testStore.send(Action.increment(), (state) => {
     state.counter = 1
@@ -89,7 +89,7 @@ test('TestStore, async', async (t) => {
     }
   }
 
-  const testStore = new TestStore(t.fail, State(), new CounterReducer())
+  const testStore = new TestStore(State(), new CounterReducer())
 
   await testStore.send(Action.tap())
 
@@ -130,13 +130,7 @@ test('TestStore, expected state equality must modify', async (t) => {
     }
   }
 
-  const testStore = new TestStore(
-    (message) => {
-      throw new Error(message)
-    },
-    State(),
-    new CounterReducer(),
-  )
+  const testStore = new TestStore(State(), new CounterReducer())
 
   await testStore.send(Action.noop())
   await testStore.receive(Action.finished())
@@ -203,7 +197,7 @@ test('TestStore, one shot effect', async (t) => {
     }
   }
 
-  const testStore = new TestStore(t.fail, State(), new CounterReducer())
+  const testStore = new TestStore(State(), new CounterReducer())
 
   await testStore.send(Action.increment(), (state) => {
     state.counter = 1
@@ -292,7 +286,7 @@ test('TestStore, long living effect', async (t) => {
     }
   }
 
-  const testStore = new TestStore(t.fail, State(), new CounterReducer())
+  const testStore = new TestStore(State(), new CounterReducer())
 
   await testStore.send(Action.toggleTimer(), (state) => {
     state.isTimerOn = true
@@ -322,4 +316,461 @@ test('TestStore, long living effect', async (t) => {
 
   testStore.complete()
   t.pass()
+})
+
+test('TestStore, no state change failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  type Action = Case<'first'> | Case<'second'>
+  const Action = makeEnum<Action>()
+
+  const store = new TestStore(State(), [
+    new Reduce<State, Action>((state, action) => {
+      void state
+
+      switch (action.case) {
+        case 'first':
+          return Effect.observable(of(Action.second()))
+
+        case 'second':
+          return Effect.none()
+      }
+    }),
+  ])
+
+  await t.throwsAsync(
+    async () => {
+      await store.send(Action.first(), () => undefined)
+    },
+    {
+      message: `Expected state to change, but no change occurred.
+
+The trailing closure made no observable modifications to state. If no change to state is \
+expected, omit the trailing closure.`,
+    },
+  )
+
+  await t.throwsAsync(
+    async () => {
+      await store.receive(Action.second(), () => undefined)
+    },
+    {
+      message: `Expected state to change, but no change occurred.
+
+The trailing closure made no observable modifications to state. If no change to state is \
+expected, omit the trailing closure.`,
+    },
+  )
+
+  store.complete()
+  t.pass()
+})
+
+test('TestStore, state change failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  const store = new TestStore(State(), [
+    new Reduce<State, null>((state, action) => {
+      void action
+      state.counter += 1
+      return Effect.none()
+    }),
+  ])
+
+  await t.throwsAsync(
+    async () => {
+      await store.send(null, (state) => (state.counter = 0))
+    },
+    {
+      message: `A state change does not match expectation:
+
+{
+\tadded: {},
+\tdeleted: {},
+\tupdated: {
+\t\tcounter: 1
+\t}
+}`,
+    },
+  )
+
+  store.complete()
+  t.pass()
+})
+
+test('TestStore, unexpected state change on send failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  const store = new TestStore(State(), [
+    new Reduce<State, null>((state, action) => {
+      void action
+      state.counter += 1
+      return Effect.none()
+    }),
+  ])
+
+  await t.throwsAsync(
+    async () => {
+      await store.send(null)
+    },
+    {
+      message: `State was not expected to change, but a change occurred:
+
+{
+\tadded: {},
+\tdeleted: {},
+\tupdated: {
+\t\tcounter: 1
+\t}
+}`,
+    },
+  )
+
+  store.complete()
+  t.pass()
+})
+
+test('TestStore, unexpected state change on receive failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  type Action = Case<'first'> | Case<'second'>
+  const Action = makeEnum<Action>()
+
+  const store = new TestStore(State(), [
+    new Reduce<State, Action>((state, action) => {
+      switch (action.case) {
+        case 'first':
+          return Effect.observable(of(Action.second()))
+
+        case 'second':
+          state.counter += 1
+          return Effect.none()
+      }
+    }),
+  ])
+
+  await store.send(Action.first())
+
+  await t.throwsAsync(
+    async () => {
+      await store.receive(Action.second())
+    },
+    {
+      message: `State was not expected to change, but a change occurred:
+
+{
+\tadded: {},
+\tdeleted: {},
+\tupdated: {
+\t\tcounter: 1
+\t}
+}`,
+    },
+  )
+
+  store.complete()
+  t.pass()
+})
+
+test('TestStore, receive action after complete', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  type Action = Case<'first'> | Case<'second'>
+  const Action = makeEnum<Action>()
+
+  const store = new TestStore(State(), [
+    new Reduce<State, Action>((state, action) => {
+      void state
+
+      switch (action.case) {
+        case 'first':
+          return Effect.observable(of(Action.second()))
+
+        case 'second':
+          return Effect.none()
+      }
+    }),
+  ])
+
+  await store.send(Action.first())
+
+  t.throws(() => store.complete(), {
+    message: `The store received 1 unexpected action(s) after this one: …
+
+Unhandled actions: [
+\t{
+\t\tcase: 'second',
+\t\tp: Symbol(ts-enums: unit value)
+\t}
+]`,
+  })
+})
+
+test('TestStore, effects in flight after complete', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  const store = new TestStore(State(), [
+    new Reduce<State, null>((state, action) => {
+      void state
+      void action
+      return Effect.observable(NEVER)
+    }),
+  ])
+
+  await store.send(null)
+
+  t.throws(() => store.complete(), {
+    message: `An effect returned for this action is still running. It must complete \
+before the end of the test. …
+
+To fix, inspect any effects the reducer returns for this action and ensure \
+that all of them complete by the end of the test. There are a few reasons why \
+an effect may not have completed:
+
+• If an effect uses a scheduler (via "delay", "debounce", etc.), make sure \
+that you wait enough time for it to perform the effect. If you are using a \
+test scheduler, advance it so that the effects may complete, or consider using \
+an immediate scheduler to immediately perform the effect instead.
+
+• If you are returning a long-living effect (timers, notifications, subjects, \
+etc.), then make sure those effects are torn down by marking the effect \
+".cancellable" and returning a corresponding cancellation effect \
+("Effect.cancel") from another action.`,
+  })
+})
+
+test('TestStore, send action before receive', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  type Action = Case<'first'> | Case<'second'>
+  const Action = makeEnum<Action>()
+
+  const store = new TestStore(State(), [
+    new Reduce<State, Action>((state, action) => {
+      void state
+
+      switch (action.case) {
+        case 'first':
+          return Effect.observable(of(Action.second()))
+
+        case 'second':
+          return Effect.none()
+      }
+    }),
+  ])
+
+  await store.send(Action.first())
+
+  await t.throwsAsync(
+    async () => {
+      await store.send(Action.first())
+    },
+    {
+      message: `Must handle 1 received action(s) before sending an action.
+
+Unhandled actions: [
+\t{
+\t\tcase: 'second',
+\t\tp: Symbol(ts-enums: unit value)
+\t}
+]`,
+    },
+  )
+})
+
+test('TestStore, receive non existent action failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  type Action = Case<'action'>
+  const Action = makeEnum<Action>()
+
+  const store = new TestStore(State(), [
+    new Reduce<State, Action>((state, action) => {
+      void state
+      void action
+      return Effect.none()
+    }),
+  ])
+
+  await t.throwsAsync(
+    async () => {
+      await store.receive(Action.action())
+    },
+    {
+      message: `Expected to receive the following action, but didn't: …
+
+{
+\tcase: 'action',
+\tp: Symbol(ts-enums: unit value)
+}`,
+    },
+  )
+})
+
+test('TestStore, receive unexpected action failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  type Action = Case<'first'> | Case<'second'>
+  const Action = makeEnum<Action>()
+
+  const store = new TestStore(State(), [
+    new Reduce<State, Action>((state, action) => {
+      void state
+
+      switch (action.case) {
+        case 'first':
+          return Effect.observable(of(Action.second()))
+
+        case 'second':
+          return Effect.none()
+      }
+    }),
+  ])
+
+  await store.send(Action.first())
+
+  await t.throwsAsync(
+    async () => {
+      await store.receive(Action.first())
+    },
+    {
+      message: `Received unexpected action: …
+
+{
+\tcase: 'second',
+\tp: Symbol(ts-enums: unit value)
+}`,
+    },
+  )
+})
+
+test('TestStore, modify lambda throws error failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  const store = new TestStore(State(), [
+    new Reduce<State, null>((state, action) => {
+      void state
+      void action
+      return Effect.none()
+    }),
+  ])
+
+  await t.throwsAsync(
+    async () => {
+      await store.send(null, () => {
+        throw new Error('some error')
+      })
+    },
+    {
+      message: 'Threw error: Error: some error',
+    },
+  )
+})
+
+test('TestStore, expected state equality must modify failure', async (t) => {
+  interface State {
+    counter: number
+  }
+
+  const State = (state: Partial<State> = {}): State => ({
+    counter: 0,
+    ...state,
+  })
+
+  const store = new TestStore(State(), [
+    new Reduce<State, boolean>((state, action) => {
+      void state
+
+      if (action) {
+        return Effect.observable(of(false))
+      } else {
+        return Effect.none()
+      }
+    }),
+  ])
+
+  await store.send(true)
+  await store.receive(false)
+
+  await t.throwsAsync(async () => {
+    await store.send(true, (state) => {
+      state.counter = 0
+    })
+  })
+
+  await t.throwsAsync(async () => {
+    await store.receive(false, (state) => {
+      state.counter = 0
+    })
+  })
 })
