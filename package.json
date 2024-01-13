@@ -24,6 +24,7 @@
   "author": "technicated",
   "license": "MIT",
   "dependencies": {
+    "@base2/pretty-print-object": "^1.0.2",
     "@technicated/ts-enums": "^0.9.4",
     "deep-object-diff": "^1.1.9",
     "hash-it": "^6.0.0",
@@ -60,7 +61,8 @@
     },
     "files": [
       "!build/module/**",
-      "!src/lib/schedulers/test-scheduler.ts"
+      "!src/lib/schedulers/test-scheduler.ts",
+      "!src/lib/test-store.ts"
     ]
   },
   "prettier": {
