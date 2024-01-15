@@ -30,7 +30,7 @@ class ScopeReducer<ParentState extends object, ParentAction> extends Reducer<
       const childState = toChildState.extract(parentState)
 
       if (childState === undefined) {
-        // error
+        // todo: error
         return Effect.none()
       }
 

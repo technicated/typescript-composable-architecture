@@ -1,4 +1,5 @@
 export * from './debug'
 export * from './empty'
+export * from './if-let'
 export * from './reduce'
 export * from './scope'
