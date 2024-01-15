@@ -172,8 +172,8 @@ Unhandled actions: ${actions}`,
       )
     }
 
-    const expectedState = this.reducer.state
-    const previousState = this.reducer.state
+    const expectedState = cloneDeep(this.reducer.state)
+    const previousState = cloneDeep(this.reducer.state)
     this.store.send({ case: 'send', action })
 
     await new Promise((resolve, reject) => {
@@ -183,8 +183,8 @@ Unhandled actions: ${actions}`,
     })
 
     try {
-      const currentState = this.reducer.state
-      this.reducer.state = previousState
+      const currentState = cloneDeep(this.reducer.state)
+      this.reducer.state = cloneDeep(previousState)
       this.expectedStateShouldMatch(
         expectedState,
         currentState,
