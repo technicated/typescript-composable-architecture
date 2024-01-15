@@ -1,7 +1,7 @@
 import { Effect } from '../effect'
 import { Reducer } from '../reducer'
 
-export class EmptyReducer<State extends object, Action> extends Reducer<
+class EmptyReducerReducer<State extends object, Action> extends Reducer<
   State,
   Action
 > {
@@ -10,4 +10,11 @@ export class EmptyReducer<State extends object, Action> extends Reducer<
     void action
     return Effect.none()
   }
+}
+
+export function EmptyReducer<
+  State extends object,
+  Action,
+>(): EmptyReducerReducer<State, Action> {
+  return new EmptyReducerReducer()
 }

@@ -28,7 +28,7 @@ const Action = makeEnum<Action>()
 
 class CounterReducer extends Reducer<State, Action> {
   body(): ReducerBuilder<State, Action> {
-    return new Reduce((state, action) => {
+    return Reduce((state, action) => {
       switch (action.case) {
         case 'decrement':
           state.counter -= 1

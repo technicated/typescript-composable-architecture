@@ -37,7 +37,7 @@ class CounterReducer extends Reducer<CounterState, CounterAction> {
   }
 
   body(): ReducerBuilder<CounterState, CounterAction> {
-    return new Reduce((state, action) => {
+    return Reduce((state, action) => {
       switch (action.case) {
         case 'decrement':
           state.counter -= 1
@@ -83,7 +83,7 @@ const FeatureA_Action = makeEnum<FeatureA_Action>()
 
 class FeatureA_Reducer extends Reducer<FeatureA_State, FeatureA_Action> {
   body(): ReducerBuilder<FeatureA_State, FeatureA_Action> {
-    return new Reduce((state, action) => {
+    return Reduce((state, action) => {
       switch (action.case) {
         case 'append':
           state.value += action.p
@@ -113,7 +113,7 @@ const FeatureB_Action = makeEnum<FeatureB_Action>()
 
 class FeatureB_Reducer extends Reducer<FeatureB_State, FeatureB_Action> {
   body(): ReducerBuilder<FeatureB_State, FeatureB_Action> {
-    return new Reduce((state, action) => {
+    return Reduce((state, action) => {
       switch (action.case) {
         case 'add':
           state.value += action.p
@@ -181,7 +181,7 @@ class AppReducer extends Reducer<AppState, AppAction> {
 
   body(): ReducerBuilder<AppState, AppAction> {
     return [
-      new Reduce((state, action) => {
+      Reduce((state, action) => {
         switch (action.case) {
           case 'counter':
             return Effect.none()

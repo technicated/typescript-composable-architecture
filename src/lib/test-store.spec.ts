@@ -25,7 +25,7 @@ test('TestStore, no effects', async (t) => {
 
   class CounterReducer extends Reducer<State, Action> {
     body(): ReducerBuilder<State, Action> {
-      return new Reduce((state, action) => {
+      return Reduce((state, action) => {
         switch (action.case) {
           case 'decrement':
             state.counter -= 1
@@ -76,7 +76,7 @@ test('TestStore, async', async (t) => {
 
   class CounterReducer extends Reducer<State, Action> {
     body(): ReducerBuilder<State, Action> {
-      return new Reduce((state, action) => {
+      return Reduce((state, action) => {
         switch (action.case) {
           case 'response':
             state.counter = action.p
@@ -116,7 +116,7 @@ test('TestStore, expected state equality must modify', async (t) => {
 
   class CounterReducer extends Reducer<State, Action> {
     body(): ReducerBuilder<State, Action> {
-      return new Reduce((state, action) => {
+      return Reduce((state, action) => {
         void state
 
         switch (action.case) {
@@ -173,7 +173,7 @@ test('TestStore, one shot effect', async (t) => {
 
   class CounterReducer extends Reducer<State, Action> {
     body(): ReducerBuilder<State, Action> {
-      return new Reduce((state, action) => {
+      return Reduce((state, action) => {
         switch (action.case) {
           case 'decrement':
             state.counter -= 1
@@ -256,7 +256,7 @@ test('TestStore, long living effect', async (t) => {
 
   class CounterReducer extends Reducer<State, Action> {
     body(): ReducerBuilder<State, Action> {
-      return new Reduce((state, action) => {
+      return Reduce((state, action) => {
         switch (action.case) {
           case 'decrement':
             state.counter -= 1
@@ -332,7 +332,7 @@ test('TestStore, no state change failure', async (t) => {
   const Action = makeEnum<Action>()
 
   const store = new TestStore(State(), [
-    new Reduce<State, Action>((state, action) => {
+    Reduce<State, Action>((state, action) => {
       void state
 
       switch (action.case) {
@@ -384,7 +384,7 @@ test('TestStore, state change failure', async (t) => {
   })
 
   const store = new TestStore(State(), [
-    new Reduce<State, null>((state, action) => {
+    Reduce<State, null>((state, action) => {
       void action
       state.counter += 1
       return Effect.none()
@@ -423,7 +423,7 @@ test('TestStore, unexpected state change on send failure', async (t) => {
   })
 
   const store = new TestStore(State(), [
-    new Reduce<State, null>((state, action) => {
+    Reduce<State, null>((state, action) => {
       void action
       state.counter += 1
       return Effect.none()
@@ -465,7 +465,7 @@ test('TestStore, unexpected state change on receive failure', async (t) => {
   const Action = makeEnum<Action>()
 
   const store = new TestStore(State(), [
-    new Reduce<State, Action>((state, action) => {
+    Reduce<State, Action>((state, action) => {
       switch (action.case) {
         case 'first':
           return Effect.observable(of(Action.second()))
@@ -514,7 +514,7 @@ test('TestStore, receive action after complete', async (t) => {
   const Action = makeEnum<Action>()
 
   const store = new TestStore(State(), [
-    new Reduce<State, Action>((state, action) => {
+    Reduce<State, Action>((state, action) => {
       void state
 
       switch (action.case) {
@@ -552,7 +552,7 @@ test('TestStore, effects in flight after complete', async (t) => {
   })
 
   const store = new TestStore(State(), [
-    new Reduce<State, null>((state, action) => {
+    Reduce<State, null>((state, action) => {
       void state
       void action
       return Effect.observable(NEVER)
@@ -595,7 +595,7 @@ test('TestStore, send action before receive', async (t) => {
   const Action = makeEnum<Action>()
 
   const store = new TestStore(State(), [
-    new Reduce<State, Action>((state, action) => {
+    Reduce<State, Action>((state, action) => {
       void state
 
       switch (action.case) {
@@ -641,7 +641,7 @@ test('TestStore, receive non existent action failure', async (t) => {
   const Action = makeEnum<Action>()
 
   const store = new TestStore(State(), [
-    new Reduce<State, Action>((state, action) => {
+    Reduce<State, Action>((state, action) => {
       void state
       void action
       return Effect.none()
@@ -677,7 +677,7 @@ test('TestStore, receive unexpected action failure', async (t) => {
   const Action = makeEnum<Action>()
 
   const store = new TestStore(State(), [
-    new Reduce<State, Action>((state, action) => {
+    Reduce<State, Action>((state, action) => {
       void state
 
       switch (action.case) {
@@ -718,7 +718,7 @@ test('TestStore, modify lambda throws error failure', async (t) => {
   })
 
   const store = new TestStore(State(), [
-    new Reduce<State, null>((state, action) => {
+    Reduce<State, null>((state, action) => {
       void state
       void action
       return Effect.none()
@@ -748,7 +748,7 @@ test('TestStore, expected state equality must modify failure', async (t) => {
   })
 
   const store = new TestStore(State(), [
-    new Reduce<State, boolean>((state, action) => {
+    Reduce<State, boolean>((state, action) => {
       void state
 
       if (action) {
