@@ -1,12 +1,22 @@
+// todo: readonly properties are not supported, treated as writable
+
+interface ObjectCtor<Root extends object> {
+  new (...args: never[]): Root
+}
+
 export class KeyPath<Root extends object, Value> {
-  static for<Root extends object>(): KeyPath<Root, Root> {
+  static for<Root extends object>(
+    base?: ObjectCtor<Root>,
+  ): KeyPath<Root, Root> {
     return new KeyPath(
+      base,
       (root) => root,
       (root, value) => Object.assign(root, value),
     )
   }
 
   private constructor(
+    private readonly base: ObjectCtor<Root> | undefined,
     public readonly get: (root: Root) => Value,
     public readonly set: (root: Root, value: Value) => void,
   ) {}
@@ -26,6 +36,7 @@ export class KeyPath<Root extends object, Value> {
     pathComponent: K,
   ): KeyPath<Root, Value[K]> {
     return new KeyPath(
+      this.base,
       (root) => this.get(root)[pathComponent],
       (root, prop) => {
         const value = this.get(root)
