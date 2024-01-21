@@ -21,11 +21,21 @@ class IfLetReducer<
 
   reduce(state: ParentState, action: ParentAction): Effect<ParentAction> {
     // todo: ephemeral state
-    // todo: cancel child effects, requires KeyPath to be Hashable - must use a class as a "base"
 
-    return this.reduceChild(state, action).merge(
-      this.parent.reduce(state, action),
-    )
+    const childEffects = this.reduceChild(state, action)
+
+    const childBefore = this.toChildState.get(state)
+    const parentEffects = this.parent.reduce(state, action)
+    const childAfter = this.toChildState.get(state)
+
+    let childCancelEffects: Effect<ParentAction>
+    if (childBefore !== null && childAfter === null) {
+      childCancelEffects = Effect.cancel(this.toChildState)
+    } else {
+      childCancelEffects = Effect.none()
+    }
+
+    return Effect.merge(childEffects, parentEffects, childCancelEffects)
   }
 
   private reduceChild(
@@ -47,7 +57,10 @@ class IfLetReducer<
 
     const childEffects = this.child.reduce(childState, childAction.value)
     this.toChildState.set(state, childState)
-    return childEffects.map(this.toChildAction.embed)
+
+    return childEffects
+      .map(this.toChildAction.embed)
+      .cancellable(this.toChildState)
   }
 }
 
