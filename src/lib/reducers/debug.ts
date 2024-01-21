@@ -2,6 +2,7 @@ import { diff } from 'deep-object-diff'
 import { cloneDeep } from 'lodash'
 import { Effect } from '../effect'
 import { Reducer } from '../reducer'
+import { TcaState } from '../state'
 
 export class _ReducerPrinter<State, Action> {
   static customDump<State, Action>(): _ReducerPrinter<State, Action> {
@@ -38,7 +39,7 @@ declare module '../..' {
 }
 
 Reducer.prototype._printChanges = function _printChanges<
-  State extends object,
+  State extends TcaState,
   Action,
 >(
   this: Reducer<State, Action>,
@@ -47,7 +48,7 @@ Reducer.prototype._printChanges = function _printChanges<
   return new _PrintChangesReducer(this, printer)
 }
 
-class _PrintChangesReducer<State extends object, Action> extends Reducer<
+class _PrintChangesReducer<State extends TcaState, Action> extends Reducer<
   State,
   Action
 > {

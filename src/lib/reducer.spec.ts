@@ -1,5 +1,5 @@
 import test from 'ava'
-import { Effect, Reducer, ReducerBuilder } from '..'
+import { Effect, Property, Reducer, ReducerBuilder, TcaState } from '..'
 
 test('Reducer not implemented failure', (t) => {
   class MyReducer extends Reducer<never, never> {}
@@ -11,8 +11,8 @@ test('Reducer not implemented failure', (t) => {
 })
 
 test('Reducer body sequencing', (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
 
   const action = Symbol()
@@ -49,14 +49,14 @@ test('Reducer body sequencing', (t) => {
   const r12 = new MyReducer12()
   const r21 = new MyReducer21()
 
-  const state12: State = { counter: 12 }
+  const state12 = State.make({ counter: 12 })
   const e12 = r12.reduce(state12, action)
 
-  const state21: State = { counter: 12 }
+  const state21 = State.make({ counter: 12 })
   const e21 = r21.reduce(state21, action)
 
   t.falsy(e12.source)
   t.falsy(e21.source)
-  t.deepEqual(state12, { counter: 27 })
-  t.deepEqual(state21, { counter: 30 })
+  t.deepEqual(state12, State.make({ counter: 27 }))
+  t.deepEqual(state21, State.make({ counter: 30 }))
 })

@@ -26,6 +26,7 @@
     "hashable",
     "hasher",
     "immer",
+    "immerable",
     "pointfreeco",
     "technicated",
     "uuidv"

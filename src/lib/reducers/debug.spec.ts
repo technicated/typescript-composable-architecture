@@ -1,15 +1,15 @@
 import { Case, makeEnum } from '@technicated/ts-enums'
 import test from 'ava'
-import { Effect, Reducer } from '../..'
+import { Effect, Property, Reducer, TcaState } from '../..'
 
 test('DebugReducer with default logger', (t) => {
   const original = console.log
   const logs: unknown[] = []
   console.log = (...args: unknown[]) => logs.push(...args)
 
-  interface State {
-    counter: number
-    other: number
+  class State extends TcaState {
+    counter: Property<number> = 0
+    other: Property<number> = 0
   }
 
   type Action = Case<'decrement'> | Case<'increment'>
@@ -32,7 +32,7 @@ test('DebugReducer with default logger', (t) => {
   }
 
   const r = new MyReducer()._printChanges()
-  const s: State = { counter: 0, other: 0 }
+  const s = State.make({ counter: 0, other: 0 })
 
   Effect.merge(
     r.reduce(s, Action.increment()),

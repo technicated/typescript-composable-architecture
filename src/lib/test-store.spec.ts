@@ -3,22 +3,19 @@ import test from 'ava'
 import { interval, map, NEVER, of, timer } from 'rxjs'
 import {
   Effect,
+  Property,
   Reduce,
   Reducer,
   ReducerBuilder,
+  TcaState,
   TestScheduler,
   TestStore,
 } from '..'
 
 test('TestStore, no effects', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'decrement'> | Case<'increment'>
   const Action = makeEnum<Action>()
@@ -39,7 +36,7 @@ test('TestStore, no effects', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State(), new CounterReducer())
+  const testStore = new TestStore(State.make(), new CounterReducer())
 
   await testStore.send(Action.increment(), (state) => {
     state.counter = 1
@@ -62,14 +59,9 @@ test('TestStore, no effects', async (t) => {
 })
 
 test('TestStore, async', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'response', number> | Case<'tap'>
   const Action = makeEnum<Action>()
@@ -89,7 +81,7 @@ test('TestStore, async', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State(), new CounterReducer())
+  const testStore = new TestStore(State.make(), new CounterReducer())
 
   await testStore.send(Action.tap())
 
@@ -102,14 +94,9 @@ test('TestStore, async', async (t) => {
 })
 
 test('TestStore, expected state equality must modify', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'finished'> | Case<'noop'>
   const Action = makeEnum<Action>()
@@ -130,7 +117,7 @@ test('TestStore, expected state equality must modify', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State(), new CounterReducer())
+  const testStore = new TestStore(State.make(), new CounterReducer())
 
   await testStore.send(Action.noop())
   await testStore.receive(Action.finished())
@@ -154,14 +141,9 @@ test('TestStore, expected state equality must modify', async (t) => {
 test('TestStore, one shot effect', async (t) => {
   const testScheduler = new TestScheduler()
 
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action =
     | Case<'decrement'>
@@ -197,7 +179,7 @@ test('TestStore, one shot effect', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State(), new CounterReducer())
+  const testStore = new TestStore(State.make(), new CounterReducer())
 
   await testStore.send(Action.increment(), (state) => {
     state.counter = 1
@@ -235,16 +217,10 @@ test('TestStore, one shot effect', async (t) => {
 test('TestStore, long living effect', async (t) => {
   const testScheduler = new TestScheduler()
 
-  interface State {
-    counter: number
-    isTimerOn: boolean
+  class State extends TcaState {
+    counter: Property<number> = 0
+    isTimerOn: Property<boolean> = false
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    isTimerOn: false,
-    ...state,
-  })
 
   type Action =
     | Case<'decrement'>
@@ -286,7 +262,7 @@ test('TestStore, long living effect', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State(), new CounterReducer())
+  const testStore = new TestStore(State.make(), new CounterReducer())
 
   await testStore.send(Action.toggleTimer(), (state) => {
     state.isTimerOn = true
@@ -319,19 +295,14 @@ test('TestStore, long living effect', async (t) => {
 })
 
 test('TestStore, no state change failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'first'> | Case<'second'>
   const Action = makeEnum<Action>()
 
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, Action>((state, action) => {
       void state
 
@@ -374,16 +345,11 @@ expected, omit the trailing closure.`,
 })
 
 test('TestStore, state change failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
 
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
-
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, null>((state, action) => {
       void action
       state.counter += 1
@@ -413,16 +379,11 @@ test('TestStore, state change failure', async (t) => {
 })
 
 test('TestStore, unexpected state change on send failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
 
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
-
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, null>((state, action) => {
       void action
       state.counter += 1
@@ -452,19 +413,14 @@ test('TestStore, unexpected state change on send failure', async (t) => {
 })
 
 test('TestStore, unexpected state change on receive failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'first'> | Case<'second'>
   const Action = makeEnum<Action>()
 
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, Action>((state, action) => {
       switch (action.case) {
         case 'first':
@@ -501,19 +457,14 @@ test('TestStore, unexpected state change on receive failure', async (t) => {
 })
 
 test('TestStore, receive action after complete', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'first'> | Case<'second'>
   const Action = makeEnum<Action>()
 
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, Action>((state, action) => {
       void state
 
@@ -542,16 +493,11 @@ Unhandled actions: [
 })
 
 test('TestStore, effects in flight after complete', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
 
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
-
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, null>((state, action) => {
       void state
       void action
@@ -582,19 +528,14 @@ etc.), then make sure those effects are torn down by marking the effect \
 })
 
 test('TestStore, send action before receive', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'first'> | Case<'second'>
   const Action = makeEnum<Action>()
 
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, Action>((state, action) => {
       void state
 
@@ -628,19 +569,14 @@ Unhandled actions: [
 })
 
 test('TestStore, receive non existent action failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'action'>
   const Action = makeEnum<Action>()
 
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, Action>((state, action) => {
       void state
       void action
@@ -664,19 +600,14 @@ test('TestStore, receive non existent action failure', async (t) => {
 })
 
 test('TestStore, receive unexpected action failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
 
   type Action = Case<'first'> | Case<'second'>
   const Action = makeEnum<Action>()
 
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, Action>((state, action) => {
       void state
 
@@ -708,16 +639,11 @@ test('TestStore, receive unexpected action failure', async (t) => {
 })
 
 test('TestStore, modify lambda throws error failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
 
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
-
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, null>((state, action) => {
       void state
       void action
@@ -738,16 +664,11 @@ test('TestStore, modify lambda throws error failure', async (t) => {
 })
 
 test('TestStore, expected state equality must modify failure', async (t) => {
-  interface State {
-    counter: number
+  class State extends TcaState {
+    counter: Property<number> = 0
   }
 
-  const State = (state: Partial<State> = {}): State => ({
-    counter: 0,
-    ...state,
-  })
-
-  const store = new TestStore(State(), [
+  const store = new TestStore(State.make(), [
     Reduce<State, boolean>((state, action) => {
       void state
 

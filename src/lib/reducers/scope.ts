@@ -2,13 +2,14 @@ import { Case, CasePath, EnumShape } from '@technicated/ts-enums'
 import { Effect } from '../effect'
 import { KeyPath } from '../keypath'
 import { buildReducer, Reducer, ReducerBuilder } from '../reducer'
+import { TcaState } from '../state'
 
-class ScopeReducer<ParentState extends object, ParentAction> extends Reducer<
+class ScopeReducer<ParentState extends TcaState, ParentAction> extends Reducer<
   ParentState,
   ParentAction
 > {
   static casePath<
-    ParentState extends EnumShape & Case<string, object>,
+    ParentState extends TcaState & EnumShape & Case<string, object>,
     ParentAction extends EnumShape,
     ChildState,
     ChildAction,
@@ -41,7 +42,7 @@ class ScopeReducer<ParentState extends object, ParentAction> extends Reducer<
   }
 
   static keyPath<
-    ParentState extends object,
+    ParentState extends TcaState,
     ParentAction extends EnumShape,
     ChildState,
     ChildAction,
@@ -78,9 +79,9 @@ class ScopeReducer<ParentState extends object, ParentAction> extends Reducer<
 }
 
 export function Scope<
-  ParentState extends EnumShape,
+  ParentState extends TcaState & EnumShape,
   ParentAction extends EnumShape,
-  ChildState extends object,
+  ChildState extends TcaState,
   ChildAction,
 >(
   toChildState: CasePath<ParentState, ChildState>,
@@ -88,9 +89,9 @@ export function Scope<
   child: ReducerBuilder<ChildState, ChildAction>,
 ): ScopeReducer<ParentState, ParentAction>
 export function Scope<
-  ParentState extends object,
+  ParentState extends TcaState,
   ParentAction extends EnumShape,
-  ChildState extends object,
+  ChildState extends TcaState,
   ChildAction,
 >(
   toChildState: KeyPath<ParentState, ChildState>,
@@ -98,9 +99,9 @@ export function Scope<
   child: ReducerBuilder<ChildState, ChildAction>,
 ): ScopeReducer<ParentState, ParentAction>
 export function Scope<
-  ParentState extends EnumShape & Case<string, object>,
+  ParentState extends TcaState & EnumShape & Case<string, object>,
   ParentAction extends EnumShape,
-  ChildState extends object,
+  ChildState extends TcaState,
   ChildAction,
 >(
   toChildState:

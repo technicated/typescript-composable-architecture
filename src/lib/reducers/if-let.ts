@@ -2,11 +2,12 @@ import { CasePath, EnumShape } from '@technicated/ts-enums'
 import { Effect } from '../effect'
 import { KeyPath } from '../keypath'
 import { buildReducer, Reducer, ReducerBuilder } from '../reducer'
+import { TcaState } from '../state'
 
 class IfLetReducer<
-  ParentState extends object,
+  ParentState extends TcaState,
   ParentAction extends EnumShape,
-  ChildState extends object,
+  ChildState extends TcaState,
   ChildAction,
 > extends Reducer<ParentState, ParentAction> {
   constructor(
@@ -54,9 +55,9 @@ declare module '../..' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Reducer<State, Action> {
     ifLet<
-      State extends object,
+      State extends TcaState,
       Action extends EnumShape,
-      WrappedState extends object,
+      WrappedState extends TcaState,
       WrappedAction,
     >(
       this: Reducer<State, Action>,
@@ -68,9 +69,9 @@ declare module '../..' {
 }
 
 Reducer.prototype.ifLet = function ifLet<
-  State extends object,
+  State extends TcaState,
   Action extends EnumShape,
-  WrappedState extends object,
+  WrappedState extends TcaState,
   WrappedAction,
 >(
   toWrappedState: KeyPath<State, WrappedState | null>,

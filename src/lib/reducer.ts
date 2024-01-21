@@ -1,17 +1,18 @@
 import { current } from 'immer'
 import { Effect } from './effect'
+import { TcaState } from './state'
 
-export type ReducerBuilder<State extends object, Action> =
+export type ReducerBuilder<State extends TcaState, Action> =
   | Reducer<State, Action>
   | Array<Reducer<State, Action>>
 
-export function buildReducer<State extends object, Action>(
+export function buildReducer<State extends TcaState, Action>(
   builder: ReducerBuilder<State, Action>,
 ): Reducer<State, Action> {
   return Array.isArray(builder) ? new SequenceMany(builder) : builder
 }
 
-export abstract class Reducer<in out State extends object, in out Action> {
+export abstract class Reducer<in out State extends TcaState, in out Action> {
   body(): ReducerBuilder<State, Action> {
     return new NeverReducer()
   }
@@ -25,7 +26,7 @@ export abstract class Reducer<in out State extends object, in out Action> {
   }
 }
 
-class NeverReducer<State extends object, Action> extends Reducer<
+class NeverReducer<State extends TcaState, Action> extends Reducer<
   State,
   Action
 > {
@@ -36,7 +37,7 @@ class NeverReducer<State extends object, Action> extends Reducer<
   }
 }
 
-class SequenceMany<State extends object, Action> extends Reducer<
+class SequenceMany<State extends TcaState, Action> extends Reducer<
   State,
   Action
 > {

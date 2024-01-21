@@ -2,21 +2,23 @@ import { Case, makeEnum } from '@technicated/ts-enums'
 import test, { ExecutionContext } from 'ava'
 import { interval, map } from 'rxjs'
 import { TestScheduler } from 'rxjs/testing'
-import { Effect, Reduce, Reducer, ReducerBuilder, Store } from '../..'
+import {
+  Effect,
+  Property,
+  Reduce,
+  Reducer,
+  ReducerBuilder,
+  Store,
+  TcaState,
+} from '../..'
 
 const makeTestScheduler = (t: ExecutionContext<unknown>) =>
   new TestScheduler((actual, expected) => t.deepEqual(actual, expected))
 
-interface State {
-  counter: number
-  isTimerOn: boolean
+class State extends TcaState {
+  counter: Property<number> = 0
+  isTimerOn: Property<boolean> = false
 }
-
-const State = (state: Partial<State> = {}): State => ({
-  counter: 0,
-  isTimerOn: false,
-  ...state,
-})
 
 type Action =
   | Case<'decrement'>
@@ -57,17 +59,17 @@ test('Effect.cancellable', (t) => {
   const testScheduler = makeTestScheduler(t)
 
   testScheduler.run(({ expectObservable }) => {
-    const store = new Store(State(), new CounterReducer())
+    const store = new Store(State.make(), new CounterReducer())
 
     expectObservable(store.state$).toBe(
       'a 499ms b 999ms c 999ms d 499ms e 6999ms f',
       {
-        a: State(),
-        b: State({ isTimerOn: true }),
-        c: State({ counter: 1, isTimerOn: true }),
-        d: State({ counter: 2, isTimerOn: true }),
-        e: State({ counter: 2, isTimerOn: false }),
-        f: State({ counter: 3, isTimerOn: false }),
+        a: State.make(),
+        b: State.make({ isTimerOn: true }),
+        c: State.make({ counter: 1, isTimerOn: true }),
+        d: State.make({ counter: 2, isTimerOn: true }),
+        e: State.make({ counter: 2, isTimerOn: false }),
+        f: State.make({ counter: 3, isTimerOn: false }),
       },
     )
 

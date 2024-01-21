@@ -2,18 +2,12 @@ import { Case, makeEnum } from '@technicated/ts-enums'
 import test, { ExecutionContext } from 'ava'
 import { delay, of } from 'rxjs'
 import { TestScheduler } from 'rxjs/testing'
-import { Effect, Reducer, Store } from '..'
+import { Effect, Property, Reducer, Store, TcaState } from '..'
 
-interface State {
-  counter: number
-  isTimerOn: boolean
+class State extends TcaState {
+  counter: Property<number> = 0
+  isTimerOn: Property<boolean> = false
 }
-
-const State = (state: Partial<State> = {}): State => ({
-  counter: 0,
-  isTimerOn: false,
-  ...state,
-})
 
 type Action =
   | Case<'decrement'>
@@ -45,35 +39,35 @@ const makeTestScheduler = (t: ExecutionContext<unknown>) =>
   new TestScheduler((actual, expected) => t.deepEqual(actual, expected))
 
 test('Store without effects', (t) => {
-  const store = new Store(State(), new CounterReducer())
-  t.deepEqual(store.state, State())
+  const store = new Store(State.make(), new CounterReducer())
+  t.deepEqual(store.state, State.make())
   store.send(Action.increment())
-  t.deepEqual(store.state, State({ counter: 1 }))
+  t.deepEqual(store.state, State.make({ counter: 1 }))
   store.send(Action.increment())
-  t.deepEqual(store.state, State({ counter: 2 }))
+  t.deepEqual(store.state, State.make({ counter: 2 }))
   store.send(Action.decrement())
-  t.deepEqual(store.state, State({ counter: 1 }))
+  t.deepEqual(store.state, State.make({ counter: 1 }))
   store.send(Action.decrement())
-  t.deepEqual(store.state, State({ counter: 0 }))
+  t.deepEqual(store.state, State.make({ counter: 0 }))
   store.send(Action.decrement())
-  t.deepEqual(store.state, State({ counter: -1 }))
+  t.deepEqual(store.state, State.make({ counter: -1 }))
 })
 
 test('Store with effects', (t) => {
   const testScheduler = makeTestScheduler(t)
 
   testScheduler.run(({ expectObservable }) => {
-    const store = new Store(State(), new CounterReducer())
+    const store = new Store(State.make(), new CounterReducer())
 
     expectObservable(store.state$).toBe(
       'a 99ms b 99ms c 799ms d 99ms e 399ms f',
       {
-        a: State({ counter: 0 }),
-        b: State({ counter: 0 }),
-        c: State({ counter: 1 }),
-        d: State({ counter: 1 }),
-        e: State({ counter: 2 }),
-        f: State({ counter: 3 }),
+        a: State.make({ counter: 0 }),
+        b: State.make({ counter: 0 }),
+        c: State.make({ counter: 1 }),
+        d: State.make({ counter: 1 }),
+        e: State.make({ counter: 2 }),
+        f: State.make({ counter: 3 }),
       },
     )
 

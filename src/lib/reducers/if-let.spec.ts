@@ -3,21 +3,18 @@ import test from 'ava'
 import {
   Effect,
   KeyPath,
+  Property,
   Reduce,
   Reducer,
   ReducerBuilder,
+  TcaState,
   TestStore,
 } from '../..'
 
 test('IfLetReducer', async (t) => {
-  interface ChildState {
-    counter: number
+  class ChildState extends TcaState {
+    counter: Property<number> = 0
   }
-
-  const ChildState = (state: Partial<ChildState> = {}): ChildState => ({
-    counter: 0,
-    ...state,
-  })
 
   type ChildAction = Case<'decrement'> | Case<'increment'>
   const ChildAction = makeEnum<ChildAction>()
@@ -38,14 +35,9 @@ test('IfLetReducer', async (t) => {
     }
   }
 
-  interface ParentState {
-    child: ChildState | null
+  class ParentState extends TcaState {
+    child: Property<ChildState | null> = null
   }
-
-  const ParentState = (state: Partial<ParentState> = {}): ParentState => ({
-    child: null,
-    ...state,
-  })
 
   type ParentAction = Case<'child', ChildAction> | Case<'toggleChild'>
   const ParentAction = makeEnum<ParentAction>()
@@ -58,7 +50,7 @@ test('IfLetReducer', async (t) => {
             return Effect.none()
 
           case 'toggleChild':
-            state.child = state.child === null ? ChildState() : null
+            state.child = state.child === null ? ChildState.make() : null
             return Effect.none()
         }
       }).ifLet(
@@ -69,18 +61,18 @@ test('IfLetReducer', async (t) => {
     }
   }
 
-  const store = new TestStore(ParentState(), new ParentReducer())
+  const store = new TestStore(ParentState.make(), new ParentReducer())
 
   await store.send(ParentAction.toggleChild(), (state) => {
-    state.child = ChildState()
+    state.child = ChildState.make()
   })
 
   await store.send(ParentAction.child(ChildAction.increment()), (state) => {
-    state.child = ChildState({ counter: 1 })
+    state.child = ChildState.make({ counter: 1 })
   })
 
   await store.send(ParentAction.child(ChildAction.decrement()), (state) => {
-    state.child = ChildState()
+    state.child = ChildState.make()
   })
 
   await store.send(ParentAction.toggleChild(), (state) => {

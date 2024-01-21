@@ -2,8 +2,9 @@ import { produce } from 'immer'
 import { BehaviorSubject, Observable, Subscription } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
 import { buildReducer, Reducer, ReducerBuilder } from './reducer'
+import { isTcaState, TcaState } from './state'
 
-export class Store<State extends object, Action> {
+export class Store<State extends TcaState, Action> {
   private readonly bufferedActions: Action[] = []
   private readonly effectSubscriptions: Partial<Record<string, Subscription>> =
     {}
@@ -20,6 +21,12 @@ export class Store<State extends object, Action> {
   }
 
   constructor(initialState: State, reducer: ReducerBuilder<State, Action>) {
+    if (!isTcaState(initialState)) {
+      throw new Error(
+        'The object being passed as the Store state is not a TcaState object',
+      )
+    }
+
     this.reducer = buildReducer(reducer)
     this.state_ = new BehaviorSubject(initialState)
   }

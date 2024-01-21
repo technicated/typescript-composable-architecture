@@ -1,7 +1,8 @@
 import { Effect } from '../effect'
 import { Reducer } from '../reducer'
+import { TcaState } from '../state'
 
-class ReduceReducer<State extends object, Action> extends Reducer<
+class ReduceReducer<State extends TcaState, Action> extends Reducer<
   State,
   Action
 > {
@@ -12,7 +13,7 @@ class ReduceReducer<State extends object, Action> extends Reducer<
   }
 }
 
-export function Reduce<State extends object, Action>(
+export function Reduce<State extends TcaState, Action>(
   reduce: (state: State, action: Action) => Effect<Action>,
 ): ReduceReducer<State, Action> {
   return new ReduceReducer(reduce)

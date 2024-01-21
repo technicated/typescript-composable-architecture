@@ -5,6 +5,7 @@ import { map, ReplaySubject, take, tap } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
 import { Effect } from './effect'
 import { buildReducer, Reducer, ReducerBuilder } from './reducer'
+import { TcaState } from './state'
 import { Store } from './store'
 
 class TestStoreError extends Error {}
@@ -19,7 +20,7 @@ class LongLivingEffect<Action> {
   constructor(public readonly action: TestAction<Action>) {}
 }
 
-class TestReducer<State extends object, Action> extends Reducer<
+class TestReducer<State extends TcaState, Action> extends Reducer<
   State,
   TestAction<Action>
 > {
@@ -77,7 +78,7 @@ class TestReducer<State extends object, Action> extends Reducer<
   }
 }
 
-export class TestStore<State extends object, Action> {
+export class TestStore<State extends TcaState, Action> {
   private readonly reducer: TestReducer<State, Action>
   private readonly store: Store<State, TestAction<Action>>
 

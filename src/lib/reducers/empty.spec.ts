@@ -1,9 +1,12 @@
 import test from 'ava'
-import { EmptyReducer, TestStore } from '../..'
+import { EmptyReducer, Property, TcaState, TestStore } from '../..'
 
 test('EmptyReducer', (t) => {
-  const state = { counter: 0 }
-  const store = new TestStore(state, EmptyReducer())
+  class State extends TcaState {
+    counter: Property<number> = 0
+  }
+
+  const store = new TestStore(State.make(), EmptyReducer())
 
   store.send(42)
   store.send('hello world')
