@@ -1,33 +1,33 @@
+import hash from 'hash-it'
 import { defer, EMPTY, Subject, Subscription, takeUntil, tap } from 'rxjs'
 import { Effect } from '../effect'
-import { Hashable, hashValue } from '../hashable'
 
 class SubscriptionsCollection {
   private readonly storage: Partial<Record<number, Set<Subscription>>> = {}
 
-  insert(id: Hashable, subscription: Subscription): void {
-    const hash = hashValue(id)
+  insert<ID>(id: ID, subscription: Subscription): void {
+    const hashValue = hash(id)
 
-    if (!(hash in this.storage)) {
-      this.storage[hash] = new Set()
+    if (!(hashValue in this.storage)) {
+      this.storage[hashValue] = new Set()
     }
 
-    this.storage[hash]?.add(subscription)
+    this.storage[hashValue]?.add(subscription)
   }
 
-  remove(id: Hashable, subscription: Subscription): void {
-    const hash = hashValue(id)
-    this.storage[hash]?.delete(subscription)
+  remove<ID>(id: ID, subscription: Subscription): void {
+    const hashValue = hash(id)
+    this.storage[hashValue]?.delete(subscription)
 
-    if (this.storage[hash]?.size === 0) {
-      delete this.storage[hash]
+    if (this.storage[hashValue]?.size === 0) {
+      delete this.storage[hashValue]
     }
   }
 
-  unsubscribe(id: Hashable): void {
-    const hash = hashValue(id)
-    this.storage[hash]?.forEach((s) => s.unsubscribe())
-    delete this.storage[hash]
+  unsubscribe<ID>(id: ID): void {
+    const hashValue = hash(id)
+    this.storage[hashValue]?.forEach((s) => s.unsubscribe())
+    delete this.storage[hashValue]
   }
 }
 
@@ -35,18 +35,18 @@ const cancellationSubscriptions = new SubscriptionsCollection()
 
 declare module '../effect' {
   export interface Effect<Action> {
-    cancellable(id: Hashable, cancelInFlight?: boolean): Effect<Action>
+    cancellable<ID>(id: ID, cancelInFlight?: boolean): Effect<Action>
   }
 
   // eslint-disable-next-line @typescript-eslint/no-namespace
   export namespace Effect {
-    export let cancel: <Action>(id: Hashable) => Effect<Action>
+    export let cancel: <Action, ID>(id: ID) => Effect<Action>
   }
 }
 
-Effect.prototype.cancellable = function cancellable<Action>(
+Effect.prototype.cancellable = function cancellable<Action, ID>(
   this: Effect<Action>,
-  id: Hashable,
+  id: ID,
   cancelInFlight: boolean = false,
 ): Effect<Action> {
   if (!this.source) {
@@ -81,7 +81,7 @@ Effect.prototype.cancellable = function cancellable<Action>(
   )
 }
 
-Effect.cancel = function cancel<Action>(id: Hashable): Effect<Action> {
+Effect.cancel = function cancel<Action, ID>(id: ID): Effect<Action> {
   return Effect.observable(
     defer(() => {
       cancellationSubscriptions.unsubscribe(id)

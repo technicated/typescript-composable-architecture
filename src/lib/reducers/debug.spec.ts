@@ -32,7 +32,7 @@ test('DebugReducer with default logger', (t) => {
   }
 
   const r = new MyReducer()._printChanges()
-  const s = State.make({ counter: 0, other: 0 })
+  const s = State.make()
 
   Effect.merge(
     r.reduce(s, Action.increment()),
