@@ -114,9 +114,7 @@ class FeatureStateProto extends TcaState {}
 type FeatureState = FeatureStateProto &
   (Case<'featureA', FeatureA_State> | Case<'featureB', FeatureB_State>)
 
-const FeatureState = makeEnum<FeatureState>({
-  makeProto: () => new FeatureStateProto(),
-})
+const FeatureState = makeEnum<FeatureState>({ proto: FeatureStateProto })
 
 type FeatureAction =
   | Case<'featureA', FeatureA_Action>
