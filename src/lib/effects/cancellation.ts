@@ -1,6 +1,6 @@
-import hash from 'hash-it'
 import { defer, EMPTY, Subject, Subscription, takeUntil, tap } from 'rxjs'
 import { Effect } from '../effect'
+import { hash } from '../internal'
 
 class SubscriptionsCollection {
   private readonly storage: Partial<Record<number, Set<Subscription>>> = {}

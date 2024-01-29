@@ -23,8 +23,7 @@
     "typedoc",
     "untracked",
 
-    "hashable",
-    "hasher",
+    "hashability",
     "immer",
     "immerable",
     "pointfreeco",

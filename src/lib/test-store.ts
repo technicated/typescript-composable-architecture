@@ -1,9 +1,10 @@
 import { prettyPrint } from '@base2/pretty-print-object'
 import { detailedDiff } from 'deep-object-diff'
-import { cloneDeep, isEqual } from 'lodash'
+import { produce } from 'immer'
 import { map, ReplaySubject, take, tap } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
 import { Effect } from './effect'
+import { areEqual } from './internal'
 import { buildReducer, Reducer, ReducerBuilder } from './reducer'
 import { TcaState } from './state'
 import { Store } from './store'
@@ -173,8 +174,8 @@ Unhandled actions: ${actions}`,
       )
     }
 
-    const expectedState = cloneDeep(this.reducer.state)
-    const previousState = cloneDeep(this.reducer.state)
+    const expectedState = this.reducer.state
+    const previousState = this.reducer.state
     this.store.send({ case: 'send', action })
 
     await new Promise((resolve, reject) => {
@@ -184,8 +185,8 @@ Unhandled actions: ${actions}`,
     })
 
     try {
-      const currentState = cloneDeep(this.reducer.state)
-      this.reducer.state = cloneDeep(previousState)
+      const currentState = this.reducer.state
+      this.reducer.state = previousState
       this.expectedStateShouldMatch(
         expectedState,
         currentState,
@@ -206,7 +207,7 @@ Unhandled actions: ${actions}`,
     actual: State,
     updateStateToExpectedResult?: (state: State) => void,
   ): void {
-    const current = cloneDeep(expected)
+    const current = expected
 
     const expectationFailure = (expected: State): void => {
       const messageHeading = updateStateToExpectedResult
@@ -221,7 +222,7 @@ ${prettyPrint(detailedDiff(expected as object, actual as object))}`,
     }
 
     const tryUnnecessaryModifyFailure = (): void => {
-      if (isEqual(expected, current) && updateStateToExpectedResult) {
+      if (areEqual(expected, current) && updateStateToExpectedResult) {
         throw new TestStoreError(`Expected state to change, but no change occurred.
 
 The trailing closure made no observable modifications to state. If no change to state is \
@@ -229,13 +230,14 @@ expected, omit the trailing closure.`)
       }
     }
 
-    const expectedWhenGivenPreviousState = cloneDeep(current)
-    if (updateStateToExpectedResult) {
-      updateStateToExpectedResult(expectedWhenGivenPreviousState)
-    }
-    expected = cloneDeep(expectedWhenGivenPreviousState)
+    const expectedWhenGivenPreviousState = produce(current, (draft: State) => {
+      if (updateStateToExpectedResult) {
+        updateStateToExpectedResult(draft)
+      }
+    })
+    expected = expectedWhenGivenPreviousState
 
-    if (!isEqual(expectedWhenGivenPreviousState, actual)) {
+    if (!areEqual(expectedWhenGivenPreviousState, actual)) {
       expectationFailure(expectedWhenGivenPreviousState)
     } else {
       tryUnnecessaryModifyFailure()
@@ -258,7 +260,7 @@ ${prettyPrint(action)}`,
       // This is valid, already checked ~ v
       this.reducer.receivedActions.shift()!
 
-    if (!isEqual(action, receivedAction)) {
+    if (!areEqual(action, receivedAction)) {
       throw new TestStoreError(
         `Received unexpected action: …
 
