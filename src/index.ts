@@ -1,7 +1,10 @@
-// todo: main index.ts
+import { enableMapSet } from 'immer'
+
+enableMapSet()
 
 export * from './lib/effect'
 export * from './lib/effects'
+export * from './lib/identified-array'
 export * from './lib/keypath'
 export * from './lib/reducer'
 export * from './lib/reducers'
