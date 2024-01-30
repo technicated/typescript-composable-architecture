@@ -2,6 +2,7 @@ import { enableMapSet } from 'immer'
 
 enableMapSet()
 
+export * from './lib/dependencies'
 export * from './lib/effect'
 export * from './lib/effects'
 export * from './lib/identified-array'
