@@ -1,5 +1,6 @@
 import test from 'ava'
 import {
+  dependency,
   DependencyKey,
   DependencyValues,
   registerDependency,
@@ -111,4 +112,47 @@ test('Differences between readonly dependencies and dependencies with getter', (
     t.is(uuid(), '00000000-0000-0000-0000-000000000000')
     t.is(uuid(), '00000000-0000-0000-0000-000000000001')
   }
+})
+
+test('Dependency resolution', (t) => {
+  class SomeClass {
+    readonly uuid = dependency('core.spec.uuid')
+    readonly valueWrapper = dependency('core.spec.valueWrapper')
+
+    evaluate(): [uuid: string, value: string] {
+      return [this.uuid(), this.valueWrapper.value]
+    }
+  }
+
+  const outer = new SomeClass()
+  t.deepEqual(outer.evaluate(), [
+    '00000000-0000-0000-0000-000000000000',
+    'hello, world',
+  ])
+
+  withDependencies(
+    (dependencies) => {
+      dependencies['core.spec.uuid'] = () =>
+        '00000000-0000-0000-0000-000000000999'
+      dependencies['core.spec.valueWrapper'].value = 'overridden'
+    },
+    () => {
+      t.deepEqual(outer.evaluate(), [
+        '00000000-0000-0000-0000-000000000001',
+        'hello, world',
+      ])
+
+      const inner = new SomeClass()
+
+      t.deepEqual(inner.evaluate(), [
+        '00000000-0000-0000-0000-000000000999',
+        'overridden',
+      ])
+    },
+  )
+
+  t.deepEqual(outer.evaluate(), [
+    '00000000-0000-0000-0000-000000000002',
+    'hello, world',
+  ])
 })
