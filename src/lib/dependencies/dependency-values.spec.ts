@@ -138,22 +138,45 @@ test('DependencyValues, optional dependency live', (t) => {
   )
 })
 
-// test('DependencyValues, dependency default is reused', (t) => {
-//   withDependencies(
-//     () => {
-//       return new DependencyValues()
-//     },
-//     () => {
-//       withDependencies(
-//         (dependencies) => {
-//           dependencies.context = DependencyContext.live
-//         },
-//         () => {
-//           t.is(dependency(reuseClient).count(), 0)
-//           dependency(reuseClient).setCount(42)
-//           t.is(dependency(reuseClient).count(), 42)
-//         },
-//       )
-//     },
-//   )
-// })
+test('DependencyValues, dependency default is reused', (t) => {
+  withDependencies(
+    () => {
+      return new DependencyValues()
+    },
+    () => {
+      withDependencies(
+        (dependencies) => {
+          dependencies.context = DependencyContext.live
+        },
+        () => {
+          t.is(dependency(reuseClient).count(), 0)
+          dependency(reuseClient).setCount(42)
+          t.is(dependency(reuseClient).count(), 42)
+        },
+      )
+    },
+  )
+})
+
+test('DependencyValues, nested with test values', (t) => {
+  withDependencies(
+    (dependencies) => {
+      dependencies.date.now = new Date(1_234_567_890_000)
+    },
+    () => {
+      withDependencies(
+        (dependencies) => {
+          dependencies.randomNumberGenerator.next = () => 0.5
+        },
+        () => {
+          t.deepEqual(
+            DependencyValues.current.date.now,
+            new Date(1_234_567_890_000),
+          )
+          t.is(dependency('randomNumberGenerator').next(), 0.5)
+          t.is(dependency('context'), DependencyContext.test)
+        },
+      )
+    },
+  )
+})

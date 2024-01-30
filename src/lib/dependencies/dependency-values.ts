@@ -36,48 +36,48 @@ export class DependencyValues {
     return result
   }
 
-  private readonly keyCache = new Map<unknown, unknown>()
+  private readonly cache = new Map<unknown, unknown>()
   private readonly storage = new Map<unknown, unknown>()
 
   get<T>(Key: DependencyKeyCtor<T>): T {
     if (this.storage.has(Key)) {
       return this.storage.get(Key) as T
-    } else if (this.keyCache.has(Key)) {
-      return this.getFromContext(Key)
+    } else if (this.cache.has(Key)) {
+      return this.cache.get(Key) as T
     } else {
-      this.keyCache.set(Key, new Key())
-      return this.getFromContext(Key)
-    }
-  }
+      const existing = this.storage.get(DependencyContextKey) as
+        | DependencyContext
+        | undefined
 
-  set<T>(Key: DependencyKeyCtor<T>, value: T): void {
-    this.storage.set(Key, value)
-  }
+      const key = new Key()
 
-  private getFromContext<T>(Key: DependencyKeyCtor<T>): T {
-    const existing = this.storage.get(DependencyContextKey) as
-      | DependencyContext
-      | undefined
-
-    const key = this.keyCache.get(Key) as DependencyKey<T>
-
-    switch (existing ?? defaultContext) {
-      case DependencyContext.live:
-        return key.liveValue
-      case DependencyContext.test:
-        if (key.testValue) {
-          return key.testValue
-        } else {
-          throw new Error(
-            `${Key.name} has no test value, but was accessed from a test context.
+      const result = (() => {
+        switch (existing ?? defaultContext) {
+          case DependencyContext.live:
+            return key.liveValue
+          case DependencyContext.test:
+            if (key.testValue) {
+              return key.testValue
+            } else {
+              throw new Error(
+                `${Key.name} has no test value, but was accessed from a test context.
 
 Dependencies registered with the library are not allowed to use their default, \
 live implementations when run from tests.
 
 To fix, override ${Key.name} with a test value.`,
-          )
+              )
+            }
         }
+      })()
+
+      this.cache.set(Key, result)
+      return result
     }
+  }
+
+  set<T>(Key: DependencyKeyCtor<T>, value: T): void {
+    this.storage.set(Key, value)
   }
 }
 
