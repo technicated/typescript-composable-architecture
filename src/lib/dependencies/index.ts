@@ -1,1 +1,5 @@
-export * from './core'
+export * from './dependency'
+export * from './dependency-context'
+export * from './dependency-key'
+export * from './dependency-values'
+export * from './with-dependencies'
