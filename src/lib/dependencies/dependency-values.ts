@@ -17,16 +17,20 @@ export class DependencyContextKey implements DependencyKey<DependencyContext> {
 
 const defaultContext = DependencyContext.test
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class DependencyValues {
   static current = new DependencyValues()
 
   static withScopedDependencies<R>(
-    updateDependencies: (dependencies: DependencyValues) => void,
+    updateDependencies: (
+      dependencies: DependencyValues,
+    ) => DependencyValues | void,
     operation: () => R,
   ): R {
     const original = DependencyValues.current
     DependencyValues.current = cloneDeep(original)
-    updateDependencies(DependencyValues.current)
+    const updated = updateDependencies(DependencyValues.current)
+    if (updated) DependencyValues.current = updated
     const result = operation()
     DependencyValues.current = original
     return result
@@ -35,17 +39,11 @@ export class DependencyValues {
   private readonly keyCache = new Map<unknown, unknown>()
   private readonly storage = new Map<unknown, unknown>()
 
-  private constructor(
-    private readonly parent: DependencyValues | null = null,
-  ) {}
-
   get<T>(Key: DependencyKeyCtor<T>): T {
     if (this.storage.has(Key)) {
       return this.storage.get(Key) as T
     } else if (this.keyCache.has(Key)) {
       return this.getFromContext(Key)
-    } else if (this.parent) {
-      return this.parent.get(Key)
     } else {
       this.keyCache.set(Key, new Key())
       return this.getFromContext(Key)
@@ -71,12 +69,12 @@ export class DependencyValues {
           return key.testValue
         } else {
           throw new Error(
-            `${Key} has no test value, but was accessed from a test context.
+            `${Key.name} has no test value, but was accessed from a test context.
 
 Dependencies registered with the library are not allowed to use their default, \
 live implementations when run from tests.
 
-To fix, override ${Key} with a test value.`,
+To fix, override ${Key.name} with a test value.`,
           )
         }
     }
@@ -101,10 +99,9 @@ export function registerDependency<Prop extends keyof DependencyValues>(
 
 // Dependency registration for `DependencyContext` / `DependencyContextKey`
 
-declare module '.' {
-  interface DependencyValues {
-    context: DependencyContext
-  }
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+export interface DependencyValues {
+  context: DependencyContext
 }
 
 registerDependency('context', DependencyContextKey)

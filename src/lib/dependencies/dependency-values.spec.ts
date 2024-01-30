@@ -1,153 +1,159 @@
 import test from 'ava'
+import {
+  DateGenerator,
+  dependency,
+  DependencyContext,
+  DependencyKey,
+  DependencyValues,
+  registerDependency,
+  withDependencies,
+} from '../..'
 
-test('gg', (t) => t.pass())
+const optionalDependency = 'dependency-values.spec.optionalDependency'
 
-// class ValueWrapper {
-//   constructor(public value: string) {}
-// }
+declare module '../..' {
+  interface DependencyValues {
+    [optionalDependency]: string | null
+  }
+}
 
-// class ValueWrapperDependencyKey implements DependencyKey<ValueWrapper> {
-//   readonly liveValue = new ValueWrapper('hello, world')
-// }
+class OptionalDependencyKey implements DependencyKey<string | null> {
+  readonly liveValue = 'live'
+  get testValue(): string | null {
+    throw new Error('unimplemented optionalDependency')
+  }
+}
 
-// declare module '../..' {
-//   interface DependencyValues {
-//     ['core.spec.valueWrapper']: ValueWrapper
-//   }
-// }
+registerDependency(optionalDependency, OptionalDependencyKey)
 
-// registerDependency('core.spec.valueWrapper', ValueWrapperDependencyKey)
+class ReuseClient {
+  constructor(
+    public readonly count: () => number,
+    public readonly setCount: (count: number) => void,
+  ) {}
+}
 
-// class UuidGeneratorDependencyKey implements DependencyKey<() => string> {
-//   get liveValue(): () => string {
-//     let i = 0
-//     return () => {
-//       return `00000000-0000-0000-0000-${`${i++}`.padStart(12, '0')}`
-//     }
-//   }
-// }
+class ReuseClientKey implements DependencyKey<ReuseClient> {
+  get liveValue(): ReuseClient {
+    let count = 0
 
-// declare module '../..' {
-//   interface DependencyValues {
-//     ['core.spec.uuid']: () => string
-//   }
-// }
+    return new ReuseClient(
+      () => count,
+      (newValue) => (count = newValue),
+    )
+  }
+}
 
-// registerDependency('core.spec.uuid', UuidGeneratorDependencyKey)
+const reuseClient = 'dependency-values.spec.reuseClient'
 
-// test('Dependency registration', (t) => {
-//   t.is(DependencyValues.current['core.spec.valueWrapper'].value, 'hello, world')
-//   t.is(
-//     DependencyValues.current['core.spec.uuid'](),
-//     '00000000-0000-0000-0000-000000000000',
-//   )
-// })
+declare module '../..' {
+  interface DependencyValues {
+    [reuseClient]: ReuseClient
+  }
+}
 
-// test('Dependency overriding, object replacement', (t) => {
-//   const outer = DependencyValues.current['core.spec.valueWrapper']
+registerDependency(reuseClient, ReuseClientKey)
 
-//   t.is(outer.value, 'hello, world')
-//   t.is(DependencyValues.current['core.spec.valueWrapper'].value, 'hello, world')
+test.beforeEach(() => {
+  DependencyValues.current.context = DependencyContext.test
+})
 
+const someDate = new Date(1_234_567_890_000)
+
+test('DependencyValues, with values', (t) => {
+  const date = withDependencies(
+    (dependencies) => {
+      dependencies.date = DateGenerator.constant(someDate)
+    },
+    () => {
+      return dependency('date').now
+    },
+  )
+
+  const defaultDate = withDependencies(
+    (dependencies) => {
+      dependencies.context = DependencyContext.live
+    },
+    () => {
+      return dependency('date').now
+    },
+  )
+
+  t.deepEqual(date, someDate)
+  t.notDeepEqual(defaultDate, someDate)
+})
+
+test('DependencyValues, with value', (t) => {
+  withDependencies(
+    (dependencies) => {
+      dependencies.context = DependencyContext.live
+    },
+    () => {
+      const date = withDependencies(
+        (dependencies) => {
+          dependencies.date = DateGenerator.constant(someDate)
+        },
+        () => {
+          return dependency('date').now
+        },
+      )
+
+      t.deepEqual(date, someDate)
+      t.notDeepEqual(DependencyValues.current.date.now, someDate)
+    },
+  )
+})
+
+test('DependencyValues, optional dependency', (t) => {
+  for (const value of [null, '']) {
+    withDependencies(
+      (dependencies) => {
+        dependencies[optionalDependency] = value
+      },
+      () => {
+        t.is(dependency(optionalDependency), value)
+      },
+    )
+  }
+})
+
+test('DependencyValues, optional dependency live', (t) => {
+  withDependencies(
+    (dependencies) => {
+      dependencies.context = DependencyContext.live
+    },
+    () => {
+      t.is(dependency(optionalDependency), 'live')
+    },
+  )
+
+  withDependencies(
+    (dependencies) => {
+      dependencies.context = DependencyContext.live
+      dependencies[optionalDependency] = null
+    },
+    () => {
+      t.is(dependency(optionalDependency), null)
+    },
+  )
+})
+
+// test('DependencyValues, dependency default is reused', (t) => {
 //   withDependencies(
-//     (dependencies) => {
-//       dependencies['core.spec.valueWrapper'] = new ValueWrapper('empty')
+//     () => {
+//       return new DependencyValues()
 //     },
 //     () => {
-//       t.is(outer.value, 'hello, world')
-//       t.is(DependencyValues.current['core.spec.valueWrapper'].value, 'empty')
+//       withDependencies(
+//         (dependencies) => {
+//           dependencies.context = DependencyContext.live
+//         },
+//         () => {
+//           t.is(dependency(reuseClient).count(), 0)
+//           dependency(reuseClient).setCount(42)
+//           t.is(dependency(reuseClient).count(), 42)
+//         },
+//       )
 //     },
 //   )
-
-//   t.is(outer.value, 'hello, world')
-//   t.is(DependencyValues.current['core.spec.valueWrapper'].value, 'hello, world')
-// })
-
-// test('Dependency overriding, property replacement', (t) => {
-//   const outer = DependencyValues.current['core.spec.valueWrapper']
-
-//   t.is(outer.value, 'hello, world')
-//   t.is(DependencyValues.current['core.spec.valueWrapper'].value, 'hello, world')
-
-//   withDependencies(
-//     (dependencies) => {
-//       dependencies['core.spec.valueWrapper'].value = 'empty'
-//     },
-//     () => {
-//       t.is(outer.value, 'hello, world')
-//       t.is(DependencyValues.current['core.spec.valueWrapper'].value, 'empty')
-//     },
-//   )
-
-//   t.is(outer.value, 'hello, world')
-//   t.is(DependencyValues.current['core.spec.valueWrapper'].value, 'hello, world')
-// })
-
-// test('Differences between readonly dependencies and dependencies with getter', (t) => {
-//   t.false(
-//     DependencyValues.current['core.spec.uuid'] ===
-//       DependencyValues.current['core.spec.uuid'],
-//   )
-
-//   t.true(
-//     DependencyValues.current['core.spec.valueWrapper'] ===
-//       DependencyValues.current['core.spec.valueWrapper'],
-//   )
-
-//   {
-//     const uuid = DependencyValues.current['core.spec.uuid']
-
-//     t.is(uuid(), '00000000-0000-0000-0000-000000000000')
-//     t.is(uuid(), '00000000-0000-0000-0000-000000000001')
-//   }
-
-//   {
-//     const uuid = DependencyValues.current['core.spec.uuid']
-
-//     t.is(uuid(), '00000000-0000-0000-0000-000000000000')
-//     t.is(uuid(), '00000000-0000-0000-0000-000000000001')
-//   }
-// })
-
-// test('Dependency resolution', (t) => {
-//   class SomeClass {
-//     readonly uuid = dependency('core.spec.uuid')
-//     readonly valueWrapper = dependency('core.spec.valueWrapper')
-
-//     evaluate(): [uuid: string, value: string] {
-//       return [this.uuid(), this.valueWrapper.value]
-//     }
-//   }
-
-//   const outer = new SomeClass()
-//   t.deepEqual(outer.evaluate(), [
-//     '00000000-0000-0000-0000-000000000000',
-//     'hello, world',
-//   ])
-
-//   withDependencies(
-//     (dependencies) => {
-//       dependencies['core.spec.uuid'] = () =>
-//         '00000000-0000-0000-0000-000000000999'
-//       dependencies['core.spec.valueWrapper'].value = 'overridden'
-//     },
-//     () => {
-//       t.deepEqual(outer.evaluate(), [
-//         '00000000-0000-0000-0000-000000000001',
-//         'hello, world',
-//       ])
-
-//       const inner = new SomeClass()
-
-//       t.deepEqual(inner.evaluate(), [
-//         '00000000-0000-0000-0000-000000000999',
-//         'overridden',
-//       ])
-//     },
-//   )
-
-//   t.deepEqual(outer.evaluate(), [
-//     '00000000-0000-0000-0000-000000000002',
-//     'hello, world',
-//   ])
 // })
