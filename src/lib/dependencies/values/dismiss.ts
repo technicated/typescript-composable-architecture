@@ -21,7 +21,7 @@ being presented before calling dependency('dismiss').`,
   )
 }
 
-class DismissKey implements DependencyKey<DismissEffect> {
+class DismissKey extends DependencyKey<DismissEffect> {
   readonly liveValue = cannotDismiss
   readonly testValue = cannotDismiss
 }

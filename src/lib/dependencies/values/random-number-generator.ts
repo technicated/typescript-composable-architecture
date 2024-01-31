@@ -1,7 +1,7 @@
 import { DependencyKey } from '../dependency-key'
 import { registerDependency } from '../dependency-values'
 
-class RandomNumberGenerator {
+export class RandomNumberGenerator {
   constructor(public next: () => number) {}
 }
 
@@ -11,7 +11,7 @@ declare module '../dependency-values' {
   }
 }
 
-class RandomNumberGeneratorKey implements DependencyKey<RandomNumberGenerator> {
+class RandomNumberGeneratorKey extends DependencyKey<RandomNumberGenerator> {
   readonly liveValue = new RandomNumberGenerator(() => Math.random())
 
   readonly testValue = new RandomNumberGenerator(() => {

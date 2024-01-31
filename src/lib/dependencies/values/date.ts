@@ -23,7 +23,7 @@ declare module '../dependency-values' {
   }
 }
 
-class DateGeneratorKey implements DependencyKey<DateGenerator> {
+class DateGeneratorKey extends DependencyKey<DateGenerator> {
   readonly liveValue = new DateGenerator(() => new Date())
 
   readonly testValue = new DateGenerator(() => {
