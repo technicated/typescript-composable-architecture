@@ -1,4 +1,3 @@
-import { cloneDeep } from 'lodash'
 import { DependencyContext } from './dependency-context'
 import { DependencyKey } from './dependency-key'
 import { DependencyKeyCtor } from './dependency-key-ctor'
@@ -19,22 +18,8 @@ const defaultContext = DependencyContext.test
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class DependencyValues {
-  static current = new DependencyValues()
-
-  static withScopedDependencies<R>(
-    updateDependencies: (
-      dependencies: DependencyValues,
-    ) => DependencyValues | void,
-    operation: () => R,
-  ): R {
-    const original = DependencyValues.current
-    DependencyValues.current = cloneDeep(original)
-    const updated = updateDependencies(DependencyValues.current)
-    if (updated) DependencyValues.current = updated
-    const result = operation()
-    DependencyValues.current = original
-    return result
-  }
+  // @internal
+  static _current = new DependencyValues()
 
   private readonly cache = new Map<unknown, unknown>()
   private readonly storage = new Map<unknown, unknown>()

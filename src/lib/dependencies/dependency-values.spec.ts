@@ -55,7 +55,7 @@ declare module '../..' {
 registerDependency(reuseClient, ReuseClientKey)
 
 test.beforeEach(() => {
-  DependencyValues.current.context = DependencyContext.test
+  DependencyValues._current.context = DependencyContext.test
 })
 
 const someDate = new Date(1_234_567_890_000)
@@ -99,7 +99,7 @@ test('DependencyValues, with value', (t) => {
       )
 
       t.deepEqual(date, someDate)
-      t.notDeepEqual(DependencyValues.current.date.now, someDate)
+      t.notDeepEqual(DependencyValues._current.date.now, someDate)
     },
   )
 })
@@ -170,7 +170,7 @@ test('DependencyValues, nested with test values', (t) => {
         },
         () => {
           t.deepEqual(
-            DependencyValues.current.date.now,
+            DependencyValues._current.date.now,
             new Date(1_234_567_890_000),
           )
           t.is(dependency('randomNumberGenerator').next(), 0.5)
