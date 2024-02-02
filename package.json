@@ -2,7 +2,8 @@
   "name": "tca",
   "version": "0.0.1",
   "description": "TypeScript Composable Architecture",
-  "main": "index.js",
+  "main": "build/main/index.js",
+  "typings": "build/main/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "fix": "run-s fix:*",
