@@ -1,7 +1,10 @@
+import { CasePath, EnumShape } from '@technicated/ts-enums'
 import { produce } from 'immer'
-import { BehaviorSubject, Observable, Subscription } from 'rxjs'
+import { BehaviorSubject, map, Observable, Subscription } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
+import { KeyPath } from './keypath'
 import { buildReducer, Reducer, ReducerBuilder } from './reducer'
+import { EmptyReducer } from './reducers'
 import { isTcaState, TcaState } from './state'
 
 export class Store<State extends TcaState, Action> {
@@ -29,6 +32,83 @@ export class Store<State extends TcaState, Action> {
 
     this.reducer = buildReducer(reducer)
     this.state_ = new BehaviorSubject(initialState)
+  }
+
+  scope<
+    State extends TcaState,
+    Action extends EnumShape,
+    ChildState extends TcaState,
+    ChildAction,
+  >(
+    this: Store<State, Action>,
+    toChildState: KeyPath<State, ChildState>,
+    toChildAction: CasePath<Action, ChildAction>,
+  ): Store<ChildState, ChildAction> {
+    return Object.defineProperties(
+      new Store<ChildState, ChildAction>(
+        toChildState.get(this.state),
+        EmptyReducer(),
+      ),
+      {
+        state$: {
+          configurable: true,
+          enumerable: true,
+          get: () => this.state$.pipe(map((state) => toChildState.get(state))),
+        },
+        state: {
+          configurable: true,
+          enumerable: true,
+          get: () => toChildState.get(this.state),
+        },
+        send: {
+          configurable: true,
+          enumerable: true,
+          value: (action: ChildAction) =>
+            this.send(toChildAction.embed(action)),
+          writable: false,
+        },
+      },
+    )
+  }
+
+  scopeIf<
+    State extends TcaState,
+    Action extends EnumShape,
+    ChildState extends TcaState,
+    ChildAction,
+  >(
+    this: Store<State, Action>,
+    toChildState: KeyPath<State, ChildState | null>,
+    toChildAction: CasePath<Action, ChildAction>,
+  ): Store<ChildState, ChildAction> | null {
+    const initialState = toChildState.get(this.state)
+
+    if (initialState === null) {
+      return null
+    }
+
+    return Object.defineProperties(
+      new Store<ChildState, ChildAction>(initialState, EmptyReducer()),
+      {
+        state$: {
+          configurable: true,
+          enumerable: true,
+          get: () => this.state$.pipe(map((state) => toChildState.get(state))),
+        },
+        state: {
+          configurable: true,
+          enumerable: true,
+          get: () => toChildState.get(this.state),
+        },
+        send: {
+          configurable: true,
+          enumerable: true,
+          value: (action: ChildAction) =>
+            this.send(toChildAction.embed(action)),
+          writable: false,
+        },
+      },
+    )
   }
 
   send(action: Action): void {
