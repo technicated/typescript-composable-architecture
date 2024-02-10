@@ -13,7 +13,8 @@
     "test:lint": "eslint src --ext .ts",
     "test:prettier": "prettier --config=.prettierrc \"src/**/*.ts\" --list-different",
     "test:spelling": "cspell \"{README.md,.github/*.md,src/**/*.ts}\"",
-    "test:unit": "nyc --silent ava"
+    "test:unit": "nyc --silent ava",
+    "prepare": "run-s build"
   },
   "keywords": [
     "TCA",
