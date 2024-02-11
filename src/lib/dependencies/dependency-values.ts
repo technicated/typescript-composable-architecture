@@ -1,4 +1,5 @@
 import { DependencyContext } from './dependency-context'
+import { DependencyContextKey } from './dependency-context-key'
 import {
   DependencyKey,
   DependencyKeyCtor,
@@ -54,21 +55,8 @@ providing a live implementation of your dependency.`,
   }
 }
 
-// This is a special key and cannot be extracted to its own file because
-// otherwise we will have a circular dependency issue: `dependency-values.ts`
-// would require access to `context-key.ts` for `DependencyContextKey`, and
-// `context-key.ts` would require access to `dependency-values.ts` for
-// `registerDependency`. Moreover, the key declaration and the dependency
-// registration must be split because we cannot use `DependencyValues` until its
-// declaration, so the dependency registration step is at the end of this file.
-export class DependencyContextKey extends DependencyKey<DependencyContext> {
-  readonly liveValue = DependencyContext.live
-  readonly testValue = DependencyContext.test
-}
-
 const defaultContext = DependencyContext.test
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class DependencyValues {
   // @internal
   static _current = new DependencyValues()
@@ -92,28 +80,3 @@ export class DependencyValues {
     this.storage.set(Key, value)
   }
 }
-
-export function registerDependency<Prop extends keyof DependencyValues>(
-  prop: Prop,
-  key: DependencyKeyCtor<DependencyValues[Prop]>,
-): void {
-  Object.defineProperty(DependencyValues.prototype, prop, {
-    configurable: false,
-    enumerable: true,
-    get(this: DependencyValues) {
-      return this.get(key)
-    },
-    set(this: DependencyValues, value) {
-      this.set(key, value)
-    },
-  })
-}
-
-// Dependency registration for `DependencyContext` / `DependencyContextKey`
-
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export interface DependencyValues {
-  context: DependencyContext
-}
-
-registerDependency('context', DependencyContextKey)

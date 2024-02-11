@@ -1,5 +1,5 @@
 import { DependencyKey } from '../dependency-key'
-import { registerDependency } from '../dependency-values'
+import { registerDependency } from '../register-dependency'
 
 export class DateGenerator {
   static constant(date: Date): DateGenerator {

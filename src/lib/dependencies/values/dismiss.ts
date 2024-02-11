@@ -1,10 +1,12 @@
 import { DependencyKey } from '../dependency-key'
-import { registerDependency } from '../dependency-values'
+import { DependencyValues } from '../dependency-values'
+import { registerDependency } from '../register-dependency'
 
 export type DismissEffect = () => void
 
 declare module '../dependency-values' {
   interface DependencyValues {
+    get isPresented(): boolean
     dismiss: DismissEffect
   }
 }
@@ -27,3 +29,11 @@ class DismissKey extends DependencyKey<DismissEffect> {
 }
 
 registerDependency('dismiss', DismissKey)
+
+Object.defineProperty(DependencyValues, 'isPresented', {
+  configurable: false,
+  enumerable: true,
+  get(this: DependencyValues): boolean {
+    return this.dismiss !== cannotDismiss
+  },
+})
