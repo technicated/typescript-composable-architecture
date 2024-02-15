@@ -1,7 +1,7 @@
 import test from 'ava'
 import {
   DateGenerator,
-  Dependency,
+  dependency,
   DependencyContext,
   DependencyKey,
   DependencyValues,
@@ -51,6 +51,7 @@ class ReuseClient {
 
 class ReuseClientKey extends TestDependencyKey<ReuseClient> {
   get testValue(): ReuseClient {
+    console.log('exec')
     let count = 0
 
     return new ReuseClient(
@@ -77,10 +78,6 @@ test.beforeEach(() => {
 const someDate = new Date(1_234_567_890_000)
 
 test.serial('DependencyValues, missing live value', (t) => {
-  class Wrapper {
-    @Dependency(missingLiveDependency) static missingLiveDependency: number
-  }
-
   t.throws(
     () => {
       withDependencies(
@@ -88,7 +85,7 @@ test.serial('DependencyValues, missing live value', (t) => {
           dependencies.context = DependencyContext.live
         },
         () => {
-          Wrapper.missingLiveDependency
+          void dependency(missingLiveDependency)
         },
       )
     },
@@ -103,16 +100,12 @@ To fix, make sure that 'TestKey' conforms to 'DependencyKey' by providing a live
 })
 
 test.serial('DependencyValues, with values', (t) => {
-  class Wrapper {
-    @Dependency('date') static date: DateGenerator
-  }
-
   const date = withDependencies(
     (dependencies) => {
       dependencies.date = DateGenerator.constant(someDate)
     },
     () => {
-      return Wrapper.date.now
+      return dependency('date').now
     },
   )
 
@@ -121,7 +114,7 @@ test.serial('DependencyValues, with values', (t) => {
       dependencies.context = DependencyContext.live
     },
     () => {
-      return Wrapper.date.now
+      return dependency('date').now
     },
   )
 
@@ -130,10 +123,6 @@ test.serial('DependencyValues, with values', (t) => {
 })
 
 test.serial('DependencyValues, with value', (t) => {
-  class Wrapper {
-    @Dependency('date') static date: DateGenerator
-  }
-
   withDependencies(
     (dependencies) => {
       dependencies.context = DependencyContext.live
@@ -144,7 +133,7 @@ test.serial('DependencyValues, with value', (t) => {
           dependencies.date = DateGenerator.constant(someDate)
         },
         () => {
-          return Wrapper.date.now
+          return dependency('date').now
         },
       )
 
@@ -155,33 +144,25 @@ test.serial('DependencyValues, with value', (t) => {
 })
 
 test.serial('DependencyValues, optional dependency', (t) => {
-  class Wrapper {
-    @Dependency(optionalDependency) static optionalDependency: string | null
-  }
-
   for (const value of [null, '']) {
     withDependencies(
       (dependencies) => {
         dependencies[optionalDependency] = value
       },
       () => {
-        t.is(Wrapper.optionalDependency, value)
+        t.is(dependency(optionalDependency), value)
       },
     )
   }
 })
 
 test.serial('DependencyValues, optional dependency live', (t) => {
-  class Wrapper {
-    @Dependency(optionalDependency) static optionalDependency: string | null
-  }
-
   withDependencies(
     (dependencies) => {
       dependencies.context = DependencyContext.live
     },
     () => {
-      t.is(Wrapper.optionalDependency, 'live')
+      t.is(dependency(optionalDependency), 'live')
     },
   )
 
@@ -191,19 +172,15 @@ test.serial('DependencyValues, optional dependency live', (t) => {
       dependencies[optionalDependency] = null
     },
     () => {
-      t.is(Wrapper.optionalDependency, null)
+      t.is(dependency(optionalDependency), null)
     },
   )
 })
 
 test.serial('DependencyValues, optional dependency undefined', (t) => {
-  class Wrapper {
-    @Dependency(optionalDependency) static optionalDependency: string | null
-  }
-
   t.throws(
     () => {
-      Wrapper.optionalDependency
+      void dependency(optionalDependency)
     },
     {
       message: 'unimplemented optionalDependency',
@@ -212,10 +189,6 @@ test.serial('DependencyValues, optional dependency undefined', (t) => {
 })
 
 test.serial('DependencyValues, dependency default is reused', (t) => {
-  class Wrapper {
-    @Dependency(reuseClient) static reuseClient: ReuseClient
-  }
-
   withDependencies(
     () => {
       return new DependencyValues()
@@ -226,9 +199,9 @@ test.serial('DependencyValues, dependency default is reused', (t) => {
           dependencies.context = DependencyContext.test
         },
         () => {
-          t.is(Wrapper.reuseClient.count(), 0)
-          Wrapper.reuseClient.setCount(42)
-          t.is(Wrapper.reuseClient.count(), 42)
+          t.is(dependency(reuseClient).count(), 0)
+          dependency(reuseClient).setCount(42)
+          t.is(dependency(reuseClient).count(), 42)
         },
       )
     },
@@ -238,10 +211,6 @@ test.serial('DependencyValues, dependency default is reused', (t) => {
 test.serial(
   'DependencyValues, dependency default is reused, segmented by context',
   (t) => {
-    class Wrapper {
-      @Dependency(reuseClient) static reuseClient: ReuseClient
-    }
-
     withDependencies(
       () => {
         return new DependencyValues()
@@ -252,22 +221,22 @@ test.serial(
             dependencies.context = DependencyContext.test
           },
           () => {
-            t.is(Wrapper.reuseClient.count(), 0)
-            Wrapper.reuseClient.setCount(42)
-            t.is(Wrapper.reuseClient.count(), 42)
+            t.is(dependency(reuseClient).count(), 0)
+            dependency(reuseClient).setCount(42)
+            t.is(dependency(reuseClient).count(), 42)
 
             withDependencies(
               (dependencies) => {
                 dependencies.context = DependencyContext.preview
               },
               () => {
-                t.is(Wrapper.reuseClient.count(), 0)
-                Wrapper.reuseClient.setCount(1729)
-                t.is(Wrapper.reuseClient.count(), 1729)
+                t.is(dependency(reuseClient).count(), 0)
+                dependency(reuseClient).setCount(1729)
+                t.is(dependency(reuseClient).count(), 1729)
               },
             )
 
-            t.is(Wrapper.reuseClient.count(), 42)
+            t.is(dependency(reuseClient).count(), 42)
 
             withDependencies(
               (dependencies) => {
@@ -276,7 +245,7 @@ test.serial(
               () => {
                 t.throws(
                   () => {
-                    Wrapper.reuseClient
+                    void dependency(reuseClient)
                   },
                   {
                     message:
@@ -286,7 +255,7 @@ test.serial(
               },
             )
 
-            t.is(Wrapper.reuseClient.count(), 42)
+            t.is(dependency(reuseClient).count(), 42)
           },
         )
       },
