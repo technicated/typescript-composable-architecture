@@ -1,3 +1,4 @@
+import { cloneDeep } from 'lodash'
 import { DependencyValues } from './dependency-values'
 
 type CompatibleKeysOf_<
@@ -16,6 +17,8 @@ type CompatibleKeysOf<
   : CompatibleKeysOf_<Target, Key>
 
 export function Dependency<Key extends keyof DependencyValues>(key: Key) {
+  const initialValue = cloneDeep(DependencyValues._current)
+
   return function <
     Target extends object,
     Prop extends CompatibleKeysOf<Target, Key>,
@@ -23,7 +26,9 @@ export function Dependency<Key extends keyof DependencyValues>(key: Key) {
     Object.defineProperty(target, prop, {
       configurable: false,
       enumerable: true,
-      get: () => DependencyValues._current[key],
+      get: () => {
+        return initialValue.mergingWith(DependencyValues._current)[key]
+      },
     })
   }
 }

@@ -1,3 +1,4 @@
+import { cloneDeep } from 'lodash'
 import { DependencyContext } from './dependency-context'
 import { DependencyContextKey } from './dependency-context-key'
 import {
@@ -74,6 +75,12 @@ export class DependencyValues {
 
       return this.cachedValues.valueForKey(Key, existing ?? defaultContext)
     }
+  }
+
+  mergingWith(other: DependencyValues): DependencyValues {
+    return Object.assign(cloneDeep(this), {
+      storage: new Map([...this.storage, ...other.storage]),
+    })
   }
 
   set<T>(Key: DependencyKeyCtor<T>, value: T): void {
