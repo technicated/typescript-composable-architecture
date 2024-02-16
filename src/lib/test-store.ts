@@ -3,6 +3,8 @@ import { detailedDiff } from 'deep-object-diff'
 import { produce } from 'immer'
 import { map, ReplaySubject, take, tap } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
+import { withDependencies } from './dependencies'
+import { DependencyValues } from './dependencies/dependency-values'
 import { Effect } from './effect'
 import { areEqual } from './internal'
 import { buildReducer, Reducer, ReducerBuilder } from './reducer'
@@ -79,12 +81,37 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   }
 }
 
+type TestStoreCtorArgs<State extends TcaState, Action> =
+  | [initialState: State, reducer: ReducerBuilder<State, Action>]
+  | [
+      initialState: State,
+      reducer: () => ReducerBuilder<State, Action>,
+      prepareDependencies?: (
+        dependencies: DependencyValues,
+      ) => DependencyValues | void,
+    ]
+
 export class TestStore<State extends TcaState, Action> {
   private readonly reducer: TestReducer<State, Action>
   private readonly store: Store<State, TestAction<Action>>
 
-  constructor(initialState: State, reducer: ReducerBuilder<State, Action>) {
-    const r = new TestReducer(buildReducer(reducer), initialState)
+  constructor(initialState: State, reducer: ReducerBuilder<State, Action>)
+  constructor(
+    initialState: State,
+    reducer: () => ReducerBuilder<State, Action>,
+    prepareDependencies?: (
+      dependencies: DependencyValues,
+    ) => DependencyValues | void,
+  )
+  constructor(...args: TestStoreCtorArgs<State, Action>) {
+    const [initialState, reducer, prepareDependencies] = args
+
+    const r = withDependencies(prepareDependencies ?? (() => {}), () => {
+      return new TestReducer(
+        buildReducer(typeof reducer === 'function' ? reducer() : reducer),
+        initialState,
+      )
+    })
 
     this.reducer = r
     this.store = new Store(initialState, r)
