@@ -61,7 +61,7 @@ test('IfLetReducer', async (t) => {
     }
   }
 
-  const store = new TestStore(ParentState.make(), new ParentReducer())
+  const store = new TestStore(ParentState.make(), () => new ParentReducer())
 
   await store.send(ParentAction.toggleChild(), (state) => {
     state.child = ChildState.make()

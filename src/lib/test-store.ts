@@ -85,38 +85,19 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   }
 }
 
-type TestStoreCtorArgs<State extends TcaState, Action> =
-  | [initialState: State, reducer: ReducerBuilder<State, Action>]
-  | [
-      initialState: State,
-      reducer: () => ReducerBuilder<State, Action>,
-      prepareDependencies?: (
-        dependencies: DependencyValues,
-      ) => DependencyValues | void,
-    ]
-
 export class TestStore<State extends TcaState, Action> {
   private readonly reducer: TestReducer<State, Action>
   private readonly store: Store<State, TestAction<Action>>
 
-  // todo: remove this overload
-  constructor(initialState: State, reducer: ReducerBuilder<State, Action>)
   constructor(
     initialState: State,
     reducer: () => ReducerBuilder<State, Action>,
-    prepareDependencies?: (
+    prepareDependencies: (
       dependencies: DependencyValues,
-    ) => DependencyValues | void,
-  )
-  constructor(...args: TestStoreCtorArgs<State, Action>) {
-    const [initialState, reducer, prepareDependencies] = args
-
-    const r = withDependencies(prepareDependencies ?? (() => {}), () => {
-      return new TestReducer(
-        typeof reducer === 'function' ? reducer : () => reducer,
-        // buildReducer(typeof reducer === 'function' ? reducer() : reducer),
-        initialState,
-      )
+    ) => DependencyValues | void = () => {},
+  ) {
+    const r = withDependencies(prepareDependencies, () => {
+      return new TestReducer(reducer, initialState)
     })
 
     this.reducer = r

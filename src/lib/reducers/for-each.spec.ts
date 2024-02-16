@@ -101,7 +101,7 @@ test('ForEachReducer, element action', async (t) => {
         new Row(3, 'Blob Sr.'),
       ]),
     }),
-    new ElementReducer(),
+    () => new ElementReducer(),
   )
 
   await store.send(
