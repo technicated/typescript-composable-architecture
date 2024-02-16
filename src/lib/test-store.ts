@@ -27,13 +27,14 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   State,
   TestAction<Action>
 > {
+  public readonly dependencies = DependencyValues._current
   public readonly effectDidSubscribe = new ReplaySubject<void>(1)
   public readonly inFlightEffects = new Set<LongLivingEffect<Action>>()
   public readonly receivedActions: Array<{ action: Action; state: State }> = []
   public state: State
 
   constructor(
-    private readonly base: Reducer<State, Action>,
+    private readonly base: () => ReducerBuilder<State, Action>,
     initialState: State,
   ) {
     super()
@@ -41,11 +42,15 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   }
 
   reduce(state: State, action: TestAction<Action>): Effect<TestAction<Action>> {
-    let effects: Effect<Action>
+    const effects = withDependencies(
+      () => this.dependencies,
+      () => {
+        return buildReducer(this.base()).reduce(state, action.action)
+      },
+    )
 
     switch (action.case) {
       case 'receive':
-        effects = this.base.reduce(state, action.action)
         this.receivedActions.push({
           action: action.action,
           state: this.snapshot(state),
@@ -53,7 +58,6 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
         break
 
       case 'send':
-        effects = this.base.reduce(state, action.action)
         this.state = this.snapshot(state)
         break
     }
@@ -95,6 +99,7 @@ export class TestStore<State extends TcaState, Action> {
   private readonly reducer: TestReducer<State, Action>
   private readonly store: Store<State, TestAction<Action>>
 
+  // todo: remove this overload
   constructor(initialState: State, reducer: ReducerBuilder<State, Action>)
   constructor(
     initialState: State,
@@ -108,7 +113,8 @@ export class TestStore<State extends TcaState, Action> {
 
     const r = withDependencies(prepareDependencies ?? (() => {}), () => {
       return new TestReducer(
-        buildReducer(typeof reducer === 'function' ? reducer() : reducer),
+        typeof reducer === 'function' ? reducer : () => reducer,
+        // buildReducer(typeof reducer === 'function' ? reducer() : reducer),
         initialState,
       )
     })
