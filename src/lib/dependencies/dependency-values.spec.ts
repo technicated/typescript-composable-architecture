@@ -51,7 +51,6 @@ class ReuseClient {
 
 class ReuseClientKey extends TestDependencyKey<ReuseClient> {
   get testValue(): ReuseClient {
-    console.log('exec')
     let count = 0
 
     return new ReuseClient(
