@@ -6,7 +6,7 @@ import {
   Property,
   Reduce,
   Reducer,
-  ReducerBuilder,
+  SomeReducerOf,
   TcaState,
   TestStore,
 } from '../..'
@@ -20,7 +20,7 @@ test('IfLetReducer', async (t) => {
   const ChildAction = makeEnum<ChildAction>()
 
   class ChildReducer extends Reducer<ChildState, ChildAction> {
-    body(): ReducerBuilder<ChildState, ChildAction> {
+    override body(): SomeReducerOf<ChildState, ChildAction> {
       return Reduce((state, action) => {
         switch (action.case) {
           case 'decrement':
@@ -43,7 +43,7 @@ test('IfLetReducer', async (t) => {
   const ParentAction = makeEnum<ParentAction>()
 
   class ParentReducer extends Reducer<ParentState, ParentAction> {
-    body(): ReducerBuilder<ParentState, ParentAction> {
+    override body(): SomeReducerOf<ParentState, ParentAction> {
       return Reduce<ParentState, ParentAction>((state, action) => {
         switch (action.case) {
           case 'child':
@@ -56,7 +56,7 @@ test('IfLetReducer', async (t) => {
       }).ifLet(
         KeyPath.for<ParentState>().appending('child'),
         ParentAction('child'),
-        new ChildReducer(),
+        () => new ChildReducer(),
       )
     }
   }

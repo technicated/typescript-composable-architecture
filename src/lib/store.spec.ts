@@ -39,7 +39,7 @@ const makeTestScheduler = (t: ExecutionContext<unknown>) =>
   new TestScheduler((actual, expected) => t.deepEqual(actual, expected))
 
 test('Store without effects', (t) => {
-  const store = new Store(State.make(), new CounterReducer())
+  const store = new Store(State.make(), () => new CounterReducer())
   t.deepEqual(store.state, State.make())
   store.send(Action.increment())
   t.deepEqual(store.state, State.make({ counter: 1 }))
@@ -57,7 +57,7 @@ test('Store with effects', (t) => {
   const testScheduler = makeTestScheduler(t)
 
   testScheduler.run(({ expectObservable }) => {
-    const store = new Store(State.make(), new CounterReducer())
+    const store = new Store(State.make(), () => new CounterReducer())
 
     expectObservable(store.state$).toBe(
       'a 99ms b 99ms c 799ms d 99ms e 399ms f',

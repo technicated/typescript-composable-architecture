@@ -6,7 +6,7 @@ import {
   Property,
   Reduce,
   Reducer,
-  ReducerBuilder,
+  SomeReducerOf,
   TcaState,
   TestScheduler,
   TestStore,
@@ -21,7 +21,7 @@ test('TestStore, no effects', async (t) => {
   const Action = makeEnum<Action>()
 
   class CounterReducer extends Reducer<State, Action> {
-    body(): ReducerBuilder<State, Action> {
+    override body(): SomeReducerOf<State, Action> {
       return Reduce((state, action) => {
         switch (action.case) {
           case 'decrement':
@@ -67,7 +67,7 @@ test('TestStore, async', async (t) => {
   const Action = makeEnum<Action>()
 
   class CounterReducer extends Reducer<State, Action> {
-    body(): ReducerBuilder<State, Action> {
+    override body(): SomeReducerOf<State, Action> {
       return Reduce((state, action) => {
         switch (action.case) {
           case 'response':
@@ -102,7 +102,7 @@ test('TestStore, expected state equality must modify', async (t) => {
   const Action = makeEnum<Action>()
 
   class CounterReducer extends Reducer<State, Action> {
-    body(): ReducerBuilder<State, Action> {
+    override body(): SomeReducerOf<State, Action> {
       return Reduce((state, action) => {
         void state
 
@@ -154,7 +154,7 @@ test('TestStore, one shot effect', async (t) => {
   const Action = makeEnum<Action>()
 
   class CounterReducer extends Reducer<State, Action> {
-    body(): ReducerBuilder<State, Action> {
+    override body(): SomeReducerOf<State, Action> {
       return Reduce((state, action) => {
         switch (action.case) {
           case 'decrement':
@@ -231,7 +231,7 @@ test('TestStore, long living effect', async (t) => {
   const Action = makeEnum<Action>()
 
   class CounterReducer extends Reducer<State, Action> {
-    body(): ReducerBuilder<State, Action> {
+    override body(): SomeReducerOf<State, Action> {
       return Reduce((state, action) => {
         switch (action.case) {
           case 'decrement':

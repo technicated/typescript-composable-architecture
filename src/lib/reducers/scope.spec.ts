@@ -8,8 +8,8 @@ import {
   Property,
   Reduce,
   Reducer,
-  ReducerBuilder,
   Scope,
+  SomeReducerOf,
   TcaState,
   TestScheduler,
   TestStore,
@@ -31,7 +31,7 @@ const CounterAction = makeEnum<CounterAction>()
 class CounterReducer extends Reducer<CounterState, CounterAction> {
   private readonly scheduler = dependency('scheduler')
 
-  body(): ReducerBuilder<CounterState, CounterAction> {
+  override body(): SomeReducerOf<CounterState, CounterAction> {
     return Reduce((state, action) => {
       switch (action.case) {
         case 'decrement':
@@ -70,7 +70,7 @@ type FeatureA_Action = Case<'append', string> | Case<'replace', string>
 const FeatureA_Action = makeEnum<FeatureA_Action>()
 
 class FeatureA_Reducer extends Reducer<FeatureA_State, FeatureA_Action> {
-  body(): ReducerBuilder<FeatureA_State, FeatureA_Action> {
+  override body(): SomeReducerOf<FeatureA_State, FeatureA_Action> {
     return Reduce((state, action) => {
       switch (action.case) {
         case 'append':
@@ -93,7 +93,7 @@ type FeatureB_Action = Case<'add', number> | Case<'replace', number>
 const FeatureB_Action = makeEnum<FeatureB_Action>()
 
 class FeatureB_Reducer extends Reducer<FeatureB_State, FeatureB_Action> {
-  body(): ReducerBuilder<FeatureB_State, FeatureB_Action> {
+  override body(): SomeReducerOf<FeatureB_State, FeatureB_Action> {
     return Reduce((state, action) => {
       switch (action.case) {
         case 'add':
@@ -122,17 +122,17 @@ type FeatureAction =
 const FeatureAction = makeEnum<FeatureAction>()
 
 class FeatureReducer extends Reducer<FeatureState, FeatureAction> {
-  body(): ReducerBuilder<FeatureState, FeatureAction> {
+  override body(): SomeReducerOf<FeatureState, FeatureAction> {
     return [
       Scope(
         FeatureState('featureA'),
         FeatureAction('featureA'),
-        new FeatureA_Reducer(),
+        () => new FeatureA_Reducer(),
       ),
       Scope(
         FeatureState('featureB'),
         FeatureAction('featureB'),
-        new FeatureB_Reducer(),
+        () => new FeatureB_Reducer(),
       ),
     ]
   }
@@ -151,7 +151,7 @@ type AppAction =
 const AppAction = makeEnum<AppAction>()
 
 class AppReducer extends Reducer<AppState, AppAction> {
-  body(): ReducerBuilder<AppState, AppAction> {
+  override body(): SomeReducerOf<AppState, AppAction> {
     return [
       Reduce((state, action) => {
         switch (action.case) {
@@ -173,12 +173,12 @@ class AppReducer extends Reducer<AppState, AppAction> {
       Scope(
         KeyPath.for<AppState>().appending('counter'),
         AppAction('counter'),
-        new CounterReducer(),
+        () => new CounterReducer(),
       ),
       Scope(
         KeyPath.for<AppState>().appending('feature'),
         AppAction('feature'),
-        new FeatureReducer(),
+        () => new FeatureReducer(),
       ),
     ]
   }

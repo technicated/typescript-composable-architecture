@@ -34,7 +34,7 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   public state: State
 
   constructor(
-    private readonly base: () => ReducerBuilder<State, Action>,
+    private readonly base: ReducerBuilder<State, Action>,
     initialState: State,
   ) {
     super()
@@ -45,7 +45,7 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
     const effects = withDependencies(
       () => this.dependencies,
       () => {
-        return buildReducer(this.base()).reduce(state, action.action)
+        return buildReducer(this.base).reduce(state, action.action)
       },
     )
 
@@ -91,7 +91,7 @@ export class TestStore<State extends TcaState, Action> {
 
   constructor(
     initialState: State,
-    reducer: () => ReducerBuilder<State, Action>,
+    reducer: ReducerBuilder<State, Action>,
     prepareDependencies: (
       dependencies: DependencyValues,
     ) => DependencyValues | void = () => {},
@@ -101,7 +101,7 @@ export class TestStore<State extends TcaState, Action> {
     })
 
     this.reducer = r
-    this.store = new Store(initialState, r)
+    this.store = new Store(initialState, () => r)
   }
 
   complete(): void {

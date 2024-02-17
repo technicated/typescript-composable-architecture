@@ -12,8 +12,8 @@ import {
   Property,
   Reduce,
   Reducer,
-  ReducerBuilder,
   registerDependency,
+  SomeReducerOf,
   TcaState,
   TestDependencyKey,
   TestScheduler,
@@ -79,16 +79,17 @@ test('ForEachReducer, element action', async (t) => {
   const ElementAction = makeEnum<ElementAction>()
 
   class ElementReducer extends Reducer<ElementState, ElementAction> {
-    body(): ReducerBuilder<ElementState, ElementAction> {
+    override body(): SomeReducerOf<ElementState, ElementAction> {
       return EmptyReducer().forEach(
         KeyPath.for(ElementState).appending('rows'),
         ElementAction('rows'),
-        Reduce((state, action) => {
-          state.value = action
-          return action.length === 0
-            ? Effect.observable(of('Empty'))
-            : Effect.none()
-        }),
+        () =>
+          Reduce((state, action) => {
+            state.value = action
+            return action.length === 0
+              ? Effect.observable(of('Empty'))
+              : Effect.none()
+          }),
       )
     }
   }
@@ -153,7 +154,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   class TimerReducer extends Reducer<TimerState, TimerAction> {
     private readonly scheduler = dependency('scheduler')
 
-    body(): ReducerBuilder<TimerState, TimerAction> {
+    override body(): SomeReducerOf<TimerState, TimerAction> {
       return Reduce((state, action) => {
         switch (action.case) {
           case 'start':
@@ -188,7 +189,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   class TimersReducer extends Reducer<TimersState, TimersAction> {
     private readonly uuid = dependency(uuid)
 
-    body(): ReducerBuilder<TimersState, TimersAction> {
+    override body(): SomeReducerOf<TimersState, TimersAction> {
       return Reduce<TimersState, TimersAction>((state, action) => {
         switch (action.case) {
           case 'addTimer':
@@ -205,7 +206,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
       }).forEach(
         KeyPath.for(TimersState).appending('timers'),
         TimersAction('timers'),
-        new TimerReducer(),
+        () => new TimerReducer(),
       )
     }
   }
