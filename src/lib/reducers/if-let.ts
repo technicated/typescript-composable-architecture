@@ -21,7 +21,7 @@ class IfLetReducer<
 
   reduce(state: ParentState, action: ParentAction): Effect<ParentAction> {
     // todo: ephemeral state
-    // todo: cancel child effects, requires KeyPath to be Hashable - must use a class as a "base"
+    // todo: cancel child effects, requires KeyPath to have custom hash value - should use a class as a "base"
 
     return this.reduceChild(state, action).merge(
       this.parent.reduce(state, action),
