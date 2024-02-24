@@ -55,7 +55,6 @@ providing a live implementation of your dependency.`,
   }
 }
 
-// todo: change to automatically pick test / live
 const defaultContext = (() => {
   interface Process {
     env?: {
