@@ -103,6 +103,10 @@ export class DependencyValues {
   private readonly cachedValues = new CachedValues()
   private readonly storage = new Map<unknown, unknown>()
 
+  get self(): DependencyValues {
+    return this
+  }
+
   get<T>(Key: DependencyKeyCtor<T>): T {
     if (this.storage.has(Key)) {
       return this.storage.get(Key) as T

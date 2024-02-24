@@ -3,7 +3,7 @@ import { detailedDiff } from 'deep-object-diff'
 import { produce } from 'immer'
 import { map, ReplaySubject, take, tap } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
-import { withDependencies } from './dependencies'
+import { dependency, withDependencies } from './dependencies'
 import { DependencyValues } from './dependencies/dependency-values'
 import { Effect } from './effect'
 import { areEqual } from './internal'
@@ -27,7 +27,7 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   State,
   TestAction<Action>
 > {
-  public readonly dependencies = DependencyValues._current
+  public readonly dependencies = dependency('self')
   public readonly effectDidSubscribe = new ReplaySubject<void>(1)
   public readonly inFlightEffects = new Set<LongLivingEffect<Action>>()
   public readonly receivedActions: Array<{ action: Action; state: State }> = []
@@ -44,9 +44,7 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   reduce(state: State, action: TestAction<Action>): Effect<TestAction<Action>> {
     const effects = withDependencies(
       () => this.dependencies,
-      () => {
-        return buildReducer(this.base).reduce(state, action.action)
-      },
+      () => buildReducer(this.base).reduce(state, action.action),
     )
 
     switch (action.case) {
