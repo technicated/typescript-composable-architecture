@@ -70,10 +70,6 @@ declare module '../..' {
 
 registerDependency(reuseClient, ReuseClientKey)
 
-test.beforeEach(() => {
-  DependencyValues._current.context = DependencyContext.test
-})
-
 const someDate = new Date(1_234_567_890_000)
 
 test.serial('DependencyValues, missing live value', (t) => {

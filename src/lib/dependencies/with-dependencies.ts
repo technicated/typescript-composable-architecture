@@ -11,7 +11,10 @@ export function withDependencies<R>(
   DependencyValues._current = cloneDeep(original)
   const updated = updateDependencies(DependencyValues._current)
   if (updated) DependencyValues._current = updated
-  const result = operation()
-  DependencyValues._current = original
-  return result
+
+  try {
+    return operation()
+  } finally {
+    DependencyValues._current = original
+  }
 }

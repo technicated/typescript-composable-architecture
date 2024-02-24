@@ -56,7 +56,46 @@ providing a live implementation of your dependency.`,
 }
 
 // todo: change to automatically pick test / live
-const defaultContext = DependencyContext.test
+const defaultContext = (() => {
+  interface Process {
+    env?: {
+      NODE_ENV?: string
+      TCA_DEPENDENCY_CONTEXT?: string
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const p: Process | undefined = process
+
+  if (p === undefined || p.env === undefined) {
+    return DependencyContext.live
+  }
+
+  if (p.env.TCA_DEPENDENCY_CONTEXT) {
+    switch (p.env.TCA_DEPENDENCY_CONTEXT) {
+      case 'live':
+        return DependencyContext.live
+      case 'preview':
+        return DependencyContext.preview
+      case 'test':
+        return DependencyContext.test
+      default:
+        console.warn(
+          `An environment values for TCA_DEPENDENCY_CONTEXT was provided but \
+did not match "live", "preview" or "test". The values was \
+"${p.env.TCA_DEPENDENCY_CONTEXT}".`,
+        )
+        break
+    }
+  }
+
+  if (p.env.NODE_ENV === 'test') {
+    return DependencyContext.test
+  }
+
+  return DependencyContext.live
+})()
 
 export class DependencyValues {
   // @internal

@@ -22,5 +22,6 @@ import { DependencyKey } from './dependency-key'
  */
 export class DependencyContextKey extends DependencyKey<DependencyContext> {
   readonly liveValue = DependencyContext.live
+  readonly previewValue = DependencyContext.preview
   readonly testValue = DependencyContext.test
 }
