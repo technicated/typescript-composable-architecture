@@ -186,6 +186,7 @@ class AppReducer extends Reducer<AppState, AppAction> {
 
 test('Scope, KeyPath', async (t) => {
   const scheduler = new TestScheduler()
+
   const store = new TestStore(
     AppState.make(),
     () => new AppReducer(),
@@ -194,47 +195,55 @@ test('Scope, KeyPath', async (t) => {
     },
   )
 
-  await store.send(AppAction.counter(CounterAction.increment()), (state) => {
-    state.counter.counter = 1
+  await store.run(async () => {
+    await store.send(AppAction.counter(CounterAction.increment()), (state) => {
+      state.counter.counter = 1
+    })
+
+    await store.send(
+      AppAction.counter(CounterAction.toggleTimer()),
+      (state) => {
+        state.counter.isTimerOn = true
+      },
+    )
+
+    scheduler.advance({ by: 3000 })
+
+    await store.receive(
+      AppAction.counter(CounterAction.timerTicked()),
+      (state) => {
+        state.counter.counter = 2
+      },
+    )
+
+    await store.receive(
+      AppAction.counter(CounterAction.timerTicked()),
+      (state) => {
+        state.counter.counter = 3
+      },
+    )
+
+    await store.receive(
+      AppAction.counter(CounterAction.timerTicked()),
+      (state) => {
+        state.counter.counter = 4
+      },
+    )
+
+    await store.send(
+      AppAction.counter(CounterAction.toggleTimer()),
+      (state) => {
+        state.counter.isTimerOn = false
+      },
+    )
   })
 
-  await store.send(AppAction.counter(CounterAction.toggleTimer()), (state) => {
-    state.counter.isTimerOn = true
-  })
-
-  scheduler.advance({ by: 3000 })
-
-  await store.receive(
-    AppAction.counter(CounterAction.timerTicked()),
-    (state) => {
-      state.counter.counter = 2
-    },
-  )
-
-  await store.receive(
-    AppAction.counter(CounterAction.timerTicked()),
-    (state) => {
-      state.counter.counter = 3
-    },
-  )
-
-  await store.receive(
-    AppAction.counter(CounterAction.timerTicked()),
-    (state) => {
-      state.counter.counter = 4
-    },
-  )
-
-  await store.send(AppAction.counter(CounterAction.toggleTimer()), (state) => {
-    state.counter.isTimerOn = false
-  })
-
-  store.complete()
   t.pass()
 })
 
 test('Scope, CasePath', async (t) => {
   const scheduler = new TestScheduler()
+
   const store = new TestStore(
     AppState.make(),
     () => new AppReducer(),
@@ -243,44 +252,45 @@ test('Scope, CasePath', async (t) => {
     },
   )
 
-  await store.send(
-    AppAction.feature(
-      FeatureAction.featureA(FeatureA_Action.append('It works')),
-    ),
-    (state) => {
-      state.feature = FeatureState.featureA(
-        FeatureA_State.make({ value: 'It works' }),
-      )
-    },
-  )
+  await store.run(async () => {
+    await store.send(
+      AppAction.feature(
+        FeatureAction.featureA(FeatureA_Action.append('It works')),
+      ),
+      (state) => {
+        state.feature = FeatureState.featureA(
+          FeatureA_State.make({ value: 'It works' }),
+        )
+      },
+    )
 
-  await store.send(
-    AppAction.feature(FeatureAction.featureA(FeatureA_Action.append('!'))),
-    (state) => {
-      state.feature = FeatureState.featureA(
-        FeatureA_State.make({ value: 'It works!' }),
-      )
-    },
-  )
+    await store.send(
+      AppAction.feature(FeatureAction.featureA(FeatureA_Action.append('!'))),
+      (state) => {
+        state.feature = FeatureState.featureA(
+          FeatureA_State.make({ value: 'It works!' }),
+        )
+      },
+    )
 
-  await store.send(AppAction.switchFeature(), (state) => {
-    state.feature = FeatureState.featureB(FeatureB_State.make())
+    await store.send(AppAction.switchFeature(), (state) => {
+      state.feature = FeatureState.featureB(FeatureB_State.make())
+    })
+
+    await store.send(
+      AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(1))),
+      (state) => {
+        state.feature = FeatureState.featureB(FeatureB_State.make({ value: 1 }))
+      },
+    )
+
+    await store.send(
+      AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(2))),
+      (state) => {
+        state.feature = FeatureState.featureB(FeatureB_State.make({ value: 3 }))
+      },
+    )
   })
 
-  await store.send(
-    AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(1))),
-    (state) => {
-      state.feature = FeatureState.featureB(FeatureB_State.make({ value: 1 }))
-    },
-  )
-
-  await store.send(
-    AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(2))),
-    (state) => {
-      state.feature = FeatureState.featureB(FeatureB_State.make({ value: 3 }))
-    },
-  )
-
-  store.complete()
   t.pass()
 })

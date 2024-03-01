@@ -1,8 +1,8 @@
 import { Case, makeEnum } from '@technicated/ts-enums'
 import test from 'ava'
-import { Effect, Property, Reducer, TcaState } from '../..'
+import { Effect, Property, Reducer, TcaState, TestStore } from '../..'
 
-test('DebugReducer with default logger', (t) => {
+test('DebugReducer with default logger', async (t) => {
   const original = console.log
   const logs: unknown[] = []
   console.log = (...args: unknown[]) => logs.push(...args)
@@ -31,16 +31,24 @@ test('DebugReducer with default logger', (t) => {
     }
   }
 
-  const r = new MyReducer()._printChanges()
-  const s = State.make()
+  const store = new TestStore(new State(), () => {
+    return new MyReducer()._printChanges()
+  })
 
-  Effect.merge(
-    r.reduce(s, Action.increment()),
-    r.reduce(s, Action.increment()),
-    r.reduce(s, Action.decrement()),
-  ).source!.subscribe() // todo: change when right Store exists
+  await store.run(async () => {
+    await store.send(Action.increment(), (state) => {
+      state.counter = 1
+    })
 
-  t.pass()
+    await store.send(Action.increment(), (state) => {
+      state.counter = 2
+    })
+
+    await store.send(Action.decrement(), (state) => {
+      state.counter = 1
+      state.other = 42
+    })
+  })
 
   console.log = original
 

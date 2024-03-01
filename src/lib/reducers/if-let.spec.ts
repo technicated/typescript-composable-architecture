@@ -63,22 +63,23 @@ test('IfLetReducer', async (t) => {
 
   const store = new TestStore(ParentState.make(), () => new ParentReducer())
 
-  await store.send(ParentAction.toggleChild(), (state) => {
-    state.child = ChildState.make()
+  await store.run(async () => {
+    await store.send(ParentAction.toggleChild(), (state) => {
+      state.child = ChildState.make()
+    })
+
+    await store.send(ParentAction.child(ChildAction.increment()), (state) => {
+      state.child = ChildState.make({ counter: 1 })
+    })
+
+    await store.send(ParentAction.child(ChildAction.decrement()), (state) => {
+      state.child = ChildState.make()
+    })
+
+    await store.send(ParentAction.toggleChild(), (state) => {
+      state.child = null
+    })
   })
 
-  await store.send(ParentAction.child(ChildAction.increment()), (state) => {
-    state.child = ChildState.make({ counter: 1 })
-  })
-
-  await store.send(ParentAction.child(ChildAction.decrement()), (state) => {
-    state.child = ChildState.make()
-  })
-
-  await store.send(ParentAction.toggleChild(), (state) => {
-    state.child = null
-  })
-
-  store.complete()
   t.pass()
 })

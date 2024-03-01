@@ -105,36 +105,37 @@ test('ForEachReducer, element action', async (t) => {
     () => new ElementReducer(),
   )
 
-  await store.send(
-    ElementAction.rows(
-      IdentifiedAction.element({ id: 1, action: 'Blob Esq.' }),
-    ),
-    (state) => {
-      state.rows.modifyForId(1, (row) => {
-        row.value = 'Blob Esq.'
-      })
-    },
-  )
+  await store.run(async () => {
+    await store.send(
+      ElementAction.rows(
+        IdentifiedAction.element({ id: 1, action: 'Blob Esq.' }),
+      ),
+      (state) => {
+        state.rows.modifyForId(1, (row) => {
+          row.value = 'Blob Esq.'
+        })
+      },
+    )
 
-  await store.send(
-    ElementAction.rows(IdentifiedAction.element({ id: 2, action: '' })),
-    (state) => {
-      state.rows.modifyForId(2, (row) => {
-        row.value = ''
-      })
-    },
-  )
+    await store.send(
+      ElementAction.rows(IdentifiedAction.element({ id: 2, action: '' })),
+      (state) => {
+        state.rows.modifyForId(2, (row) => {
+          row.value = ''
+        })
+      },
+    )
 
-  await store.receive(
-    ElementAction.rows(IdentifiedAction.element({ id: 2, action: 'Empty' })),
-    (state) => {
-      state.rows.modifyForId(2, (row) => {
-        row.value = 'Empty'
-      })
-    },
-  )
+    await store.receive(
+      ElementAction.rows(IdentifiedAction.element({ id: 2, action: 'Empty' })),
+      (state) => {
+        state.rows.modifyForId(2, (row) => {
+          row.value = 'Empty'
+        })
+      },
+    )
+  })
 
-  store.complete()
   t.pass()
 })
 
@@ -221,139 +222,139 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
     },
   )
 
-  await store.send(TimersAction.addTimer(), (state) => {
-    state.timers = IdentifiedArray.from([
-      new TimerState(UuidGenerator.constantValue(0)),
-    ])
+  await store.run(async () => {
+    await store.send(TimersAction.addTimer(), (state) => {
+      state.timers = IdentifiedArray.from([
+        new TimerState(UuidGenerator.constantValue(0)),
+      ])
+    })
+
+    await store.send(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(0),
+          action: TimerAction.start(),
+        }),
+      ),
+    )
+
+    scheduler.advance({ by: 2000 })
+
+    await store.receive(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(0),
+          action: TimerAction.tick(),
+        }),
+      ),
+      (state) => {
+        state.timers.modifyAtIndex(0, (timer) => {
+          timer.elapsed = 1
+        })
+      },
+    )
+
+    await store.receive(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(0),
+          action: TimerAction.tick(),
+        }),
+      ),
+      (state) => {
+        state.timers.modifyAtIndex(0, (timer) => {
+          timer.elapsed = 2
+        })
+      },
+    )
+
+    await store.send(TimersAction.addTimer(), (state) => {
+      state.timers = IdentifiedArray.from([
+        new TimerState(UuidGenerator.constantValue(0), 2),
+        new TimerState(UuidGenerator.constantValue(1)),
+      ])
+    })
+
+    scheduler.advance({ by: 1000 })
+
+    await store.receive(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(0),
+          action: TimerAction.tick(),
+        }),
+      ),
+      (state) => {
+        state.timers.modifyAtIndex(0, (timer) => {
+          timer.elapsed = 3
+        })
+      },
+    )
+
+    await store.send(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(1),
+          action: TimerAction.start(),
+        }),
+      ),
+    )
+
+    scheduler.advance({ by: 1000 })
+    await store.receive(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(0),
+          action: TimerAction.tick(),
+        }),
+      ),
+      (state) => {
+        state.timers.modifyAtIndex(0, (timer) => {
+          timer.elapsed = 4
+        })
+      },
+    )
+
+    await store.receive(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(1),
+          action: TimerAction.tick(),
+        }),
+      ),
+      (state) => {
+        state.timers.modifyAtIndex(1, (timer) => {
+          timer.elapsed = 1
+        })
+      },
+    )
+
+    await store.send(TimersAction.removeLastTimer(), (state) => {
+      state.timers = IdentifiedArray.from([
+        new TimerState(UuidGenerator.constantValue(0), 4),
+      ])
+    })
+
+    scheduler.advance({ by: 1000 })
+
+    await store.receive(
+      TimersAction.timers(
+        IdentifiedAction.element({
+          id: UuidGenerator.constantValue(0),
+          action: TimerAction.tick(),
+        }),
+      ),
+      (state) => {
+        state.timers.modifyAtIndex(0, (timer) => {
+          timer.elapsed = 5
+        })
+      },
+    )
+
+    await store.send(TimersAction.removeLastTimer(), (state) => {
+      state.timers = IdentifiedArray.empty()
+    })
   })
 
-  await store.send(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(0),
-        action: TimerAction.start(),
-      }),
-    ),
-  )
-
-  scheduler.advance({ by: 2000 })
-
-  await store.receive(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(0),
-        action: TimerAction.tick(),
-      }),
-    ),
-    (state) => {
-      state.timers.modifyAtIndex(0, (timer) => {
-        timer.elapsed = 1
-      })
-    },
-  )
-
-  await store.receive(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(0),
-        action: TimerAction.tick(),
-      }),
-    ),
-    (state) => {
-      state.timers.modifyAtIndex(0, (timer) => {
-        timer.elapsed = 2
-      })
-    },
-  )
-
-  await store.send(TimersAction.addTimer(), (state) => {
-    state.timers = IdentifiedArray.from([
-      new TimerState(UuidGenerator.constantValue(0), 2),
-      new TimerState(UuidGenerator.constantValue(1)),
-    ])
-  })
-
-  scheduler.advance({ by: 1000 })
-
-  await store.receive(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(0),
-        action: TimerAction.tick(),
-      }),
-    ),
-    (state) => {
-      state.timers.modifyAtIndex(0, (timer) => {
-        timer.elapsed = 3
-      })
-    },
-  )
-
-  await store.send(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(1),
-        action: TimerAction.start(),
-      }),
-    ),
-  )
-
-  scheduler.advance({ by: 1000 })
-
-  await store.receive(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(0),
-        action: TimerAction.tick(),
-      }),
-    ),
-    (state) => {
-      state.timers.modifyAtIndex(0, (timer) => {
-        timer.elapsed = 4
-      })
-    },
-  )
-
-  await store.receive(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(1),
-        action: TimerAction.tick(),
-      }),
-    ),
-    (state) => {
-      state.timers.modifyAtIndex(1, (timer) => {
-        timer.elapsed = 1
-      })
-    },
-  )
-
-  await store.send(TimersAction.removeLastTimer(), (state) => {
-    state.timers = IdentifiedArray.from([
-      new TimerState(UuidGenerator.constantValue(0), 4),
-    ])
-  })
-
-  scheduler.advance({ by: 1000 })
-
-  await store.receive(
-    TimersAction.timers(
-      IdentifiedAction.element({
-        id: UuidGenerator.constantValue(0),
-        action: TimerAction.tick(),
-      }),
-    ),
-    (state) => {
-      state.timers.modifyAtIndex(0, (timer) => {
-        timer.elapsed = 5
-      })
-    },
-  )
-
-  await store.send(TimersAction.removeLastTimer(), (state) => {
-    state.timers = IdentifiedArray.empty()
-  })
-
-  store.complete()
   t.pass()
 })

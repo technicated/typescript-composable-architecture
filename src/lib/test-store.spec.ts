@@ -36,25 +36,26 @@ test('TestStore, no effects', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State.make(), () => new CounterReducer())
+  const store = new TestStore(State.make(), () => new CounterReducer())
 
-  await testStore.send(Action.increment(), (state) => {
-    state.counter = 1
+  await store.run(async () => {
+    await store.send(Action.increment(), (state) => {
+      state.counter = 1
+    })
+
+    await store.send(Action.increment(), (state) => {
+      state.counter = 2
+    })
+
+    await store.send(Action.decrement(), (state) => {
+      state.counter = 1
+    })
+
+    await store.send(Action.increment(), (state) => {
+      state.counter = 2
+    })
   })
 
-  await testStore.send(Action.increment(), (state) => {
-    state.counter = 2
-  })
-
-  await testStore.send(Action.decrement(), (state) => {
-    state.counter = 1
-  })
-
-  await testStore.send(Action.increment(), (state) => {
-    state.counter = 2
-  })
-
-  testStore.complete()
   t.pass()
 })
 
@@ -81,15 +82,16 @@ test('TestStore, async', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State.make(), () => new CounterReducer())
+  const store = new TestStore(State.make(), () => new CounterReducer())
 
-  await testStore.send(Action.tap())
+  await store.run(async () => {
+    await store.send(Action.tap())
 
-  await testStore.receive(Action.response(42), (state) => {
-    state.counter = 42
+    await store.receive(Action.response(42), (state) => {
+      state.counter = 42
+    })
   })
 
-  testStore.complete()
   t.pass()
 })
 
@@ -117,24 +119,25 @@ test('TestStore, expected state equality must modify', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State.make(), () => new CounterReducer())
+  const store = new TestStore(State.make(), () => new CounterReducer())
 
-  await testStore.send(Action.noop())
-  await testStore.receive(Action.finished())
+  await store.run(async () => {
+    await store.send(Action.noop())
+    await store.receive(Action.finished())
 
-  await t.throwsAsync(async () => {
-    await testStore.send(Action.noop(), (state) => {
-      state.counter = 0
+    await t.throwsAsync(async () => {
+      await store.send(Action.noop(), (state) => {
+        state.counter = 0
+      })
+    })
+
+    await t.throwsAsync(async () => {
+      await store.receive(Action.finished(), (state) => {
+        state.counter = 0
+      })
     })
   })
 
-  await t.throwsAsync(async () => {
-    await testStore.receive(Action.finished(), (state) => {
-      state.counter = 0
-    })
-  })
-
-  testStore.complete()
   t.pass()
 })
 
@@ -179,38 +182,39 @@ test('TestStore, one shot effect', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State.make(), () => new CounterReducer())
+  const store = new TestStore(State.make(), () => new CounterReducer())
 
-  await testStore.send(Action.increment(), (state) => {
-    state.counter = 1
+  await store.run(async () => {
+    await store.send(Action.increment(), (state) => {
+      state.counter = 1
+    })
+
+    await store.send(Action.delayedIncrement())
+
+    await store.send(Action.decrement(), (state) => {
+      state.counter = 0
+    })
+
+    testScheduler.advance({ by: 1000 })
+
+    await store.receive(Action.increment(), (state) => {
+      state.counter = 1
+    })
+
+    await store.send(Action.delayedDecrement())
+    await store.send(Action.delayedDecrement())
+
+    testScheduler.advance({ by: 1000 })
+
+    await store.receive(Action.decrement(), (state) => {
+      state.counter = 0
+    })
+
+    await store.receive(Action.decrement(), (state) => {
+      state.counter = -1
+    })
   })
 
-  await testStore.send(Action.delayedIncrement())
-
-  await testStore.send(Action.decrement(), (state) => {
-    state.counter = 0
-  })
-
-  testScheduler.advance({ by: 1000 })
-
-  await testStore.receive(Action.increment(), (state) => {
-    state.counter = 1
-  })
-
-  await testStore.send(Action.delayedDecrement())
-  await testStore.send(Action.delayedDecrement())
-
-  testScheduler.advance({ by: 1000 })
-
-  await testStore.receive(Action.decrement(), (state) => {
-    state.counter = 0
-  })
-
-  await testStore.receive(Action.decrement(), (state) => {
-    state.counter = -1
-  })
-
-  testStore.complete()
   t.pass()
 })
 
@@ -262,35 +266,36 @@ test('TestStore, long living effect', async (t) => {
     }
   }
 
-  const testStore = new TestStore(State.make(), () => new CounterReducer())
+  const store = new TestStore(State.make(), () => new CounterReducer())
 
-  await testStore.send(Action.toggleTimer(), (state) => {
-    state.isTimerOn = true
+  store.run(async () => {
+    await store.send(Action.toggleTimer(), (state) => {
+      state.isTimerOn = true
+    })
+
+    testScheduler.advance({ by: 1000 })
+
+    await store.receive(Action.timerTicked(), (state) => {
+      state.counter = 1
+    })
+
+    testScheduler.advance({ by: 1000 })
+
+    await store.receive(Action.timerTicked(), (state) => {
+      state.counter = 2
+    })
+
+    testScheduler.advance({ by: 1000 })
+
+    await store.receive(Action.timerTicked(), (state) => {
+      state.counter = 3
+    })
+
+    await store.send(Action.toggleTimer(), (state) => {
+      state.isTimerOn = false
+    })
   })
 
-  testScheduler.advance({ by: 1000 })
-
-  await testStore.receive(Action.timerTicked(), (state) => {
-    state.counter = 1
-  })
-
-  testScheduler.advance({ by: 1000 })
-
-  await testStore.receive(Action.timerTicked(), (state) => {
-    state.counter = 2
-  })
-
-  testScheduler.advance({ by: 1000 })
-
-  await testStore.receive(Action.timerTicked(), (state) => {
-    state.counter = 3
-  })
-
-  await testStore.send(Action.toggleTimer(), (state) => {
-    state.isTimerOn = false
-  })
-
-  testStore.complete()
   t.pass()
 })
 
@@ -316,32 +321,31 @@ test('TestStore, no state change failure', async (t) => {
     }),
   ])
 
-  await t.throwsAsync(
-    async () => {
-      await store.send(Action.first(), () => undefined)
-    },
-    {
-      message: `Expected state to change, but no change occurred.
+  await store.run(async () => {
+    await t.throwsAsync(
+      async () => {
+        await store.send(Action.first(), () => undefined)
+      },
+      {
+        message: `Expected state to change, but no change occurred.
 
 The trailing closure made no observable modifications to state. If no change to state is \
 expected, omit the trailing closure.`,
-    },
-  )
+      },
+    )
 
-  await t.throwsAsync(
-    async () => {
-      await store.receive(Action.second(), () => undefined)
-    },
-    {
-      message: `Expected state to change, but no change occurred.
+    await t.throwsAsync(
+      async () => {
+        await store.receive(Action.second(), () => undefined)
+      },
+      {
+        message: `Expected state to change, but no change occurred.
 
 The trailing closure made no observable modifications to state. If no change to state is \
 expected, omit the trailing closure.`,
-    },
-  )
-
-  store.complete()
-  t.pass()
+      },
+    )
+  })
 })
 
 test('TestStore, state change failure', async (t) => {
@@ -357,12 +361,13 @@ test('TestStore, state change failure', async (t) => {
     }),
   ])
 
-  await t.throwsAsync(
-    async () => {
-      await store.send(null, (state) => (state.counter = 0))
-    },
-    {
-      message: `A state change does not match expectation:
+  await store.run(async () => {
+    await t.throwsAsync(
+      async () => {
+        await store.send(null, (state) => (state.counter = 0))
+      },
+      {
+        message: `A state change does not match expectation:
 
 {
 \tadded: {},
@@ -371,11 +376,9 @@ test('TestStore, state change failure', async (t) => {
 \t\tcounter: 1
 \t}
 }`,
-    },
-  )
-
-  store.complete()
-  t.pass()
+      },
+    )
+  })
 })
 
 test('TestStore, unexpected state change on send failure', async (t) => {
@@ -391,12 +394,13 @@ test('TestStore, unexpected state change on send failure', async (t) => {
     }),
   ])
 
-  await t.throwsAsync(
-    async () => {
-      await store.send(null)
-    },
-    {
-      message: `State was not expected to change, but a change occurred:
+  await store.run(async () => {
+    await t.throwsAsync(
+      async () => {
+        await store.send(null)
+      },
+      {
+        message: `State was not expected to change, but a change occurred:
 
 {
 \tadded: {},
@@ -405,11 +409,9 @@ test('TestStore, unexpected state change on send failure', async (t) => {
 \t\tcounter: 1
 \t}
 }`,
-    },
-  )
-
-  store.complete()
-  t.pass()
+      },
+    )
+  })
 })
 
 test('TestStore, unexpected state change on receive failure', async (t) => {
@@ -433,14 +435,15 @@ test('TestStore, unexpected state change on receive failure', async (t) => {
     }),
   ])
 
-  await store.send(Action.first())
+  await store.run(async () => {
+    await store.send(Action.first())
 
-  await t.throwsAsync(
-    async () => {
-      await store.receive(Action.second())
-    },
-    {
-      message: `State was not expected to change, but a change occurred:
+    await t.throwsAsync(
+      async () => {
+        await store.receive(Action.second())
+      },
+      {
+        message: `State was not expected to change, but a change occurred:
 
 {
 \tadded: {},
@@ -449,11 +452,9 @@ test('TestStore, unexpected state change on receive failure', async (t) => {
 \t\tcounter: 1
 \t}
 }`,
-    },
-  )
-
-  store.complete()
-  t.pass()
+      },
+    )
+  })
 })
 
 test('TestStore, receive action after complete', async (t) => {
@@ -584,19 +585,21 @@ test('TestStore, receive non existent action failure', async (t) => {
     }),
   ])
 
-  await t.throwsAsync(
-    async () => {
-      await store.receive(Action.action())
-    },
-    {
-      message: `Expected to receive the following action, but didn't: …
+  await store.run(async () => {
+    await t.throwsAsync(
+      async () => {
+        await store.receive(Action.action())
+      },
+      {
+        message: `Expected to receive the following action, but didn't: …
 
 {
 \tcase: 'action',
 \tp: Symbol(ts-enums: unit value)
 }`,
-    },
-  )
+      },
+    )
+  })
 })
 
 test('TestStore, receive unexpected action failure', async (t) => {
@@ -621,21 +624,23 @@ test('TestStore, receive unexpected action failure', async (t) => {
     }),
   ])
 
-  await store.send(Action.first())
+  await store.run(async () => {
+    await store.send(Action.first())
 
-  await t.throwsAsync(
-    async () => {
-      await store.receive(Action.first())
-    },
-    {
-      message: `Received unexpected action: …
+    await t.throwsAsync(
+      async () => {
+        await store.receive(Action.first())
+      },
+      {
+        message: `Received unexpected action: …
 
 {
 \tcase: 'second',
 \tp: Symbol(ts-enums: unit value)
 }`,
-    },
-  )
+      },
+    )
+  })
 })
 
 test('TestStore, modify lambda throws error failure', async (t) => {
@@ -651,16 +656,18 @@ test('TestStore, modify lambda throws error failure', async (t) => {
     }),
   ])
 
-  await t.throwsAsync(
-    async () => {
-      await store.send(null, () => {
-        throw new Error('some error')
-      })
-    },
-    {
-      message: 'Threw error: Error: some error',
-    },
-  )
+  await store.run(async () => {
+    await t.throwsAsync(
+      async () => {
+        await store.send(null, () => {
+          throw new Error('some error')
+        })
+      },
+      {
+        message: 'Threw error: Error: some error',
+      },
+    )
+  })
 })
 
 test('TestStore, expected state equality must modify failure', async (t) => {
@@ -680,18 +687,20 @@ test('TestStore, expected state equality must modify failure', async (t) => {
     }),
   ])
 
-  await store.send(true)
-  await store.receive(false)
+  await store.run(async () => {
+    await store.send(true)
+    await store.receive(false)
 
-  await t.throwsAsync(async () => {
-    await store.send(true, (state) => {
-      state.counter = 0
+    await t.throwsAsync(async () => {
+      await store.send(true, (state) => {
+        state.counter = 0
+      })
     })
-  })
 
-  await t.throwsAsync(async () => {
-    await store.receive(false, (state) => {
-      state.counter = 0
+    await t.throwsAsync(async () => {
+      await store.receive(false, (state) => {
+        state.counter = 0
+      })
     })
   })
 })
