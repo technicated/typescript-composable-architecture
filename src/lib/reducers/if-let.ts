@@ -63,7 +63,7 @@ declare module '../..' {
       this: Reducer<State, Action>,
       toWrappedState: KeyPath<State, WrappedState | null>,
       toWrappedAction: CasePath<Action, WrappedAction>,
-      reducer: Reducer<WrappedState, WrappedAction>,
+      reducer: ReducerBuilder<WrappedState, WrappedAction>,
     ): IfLetReducer<State, Action, WrappedState, WrappedAction>
   }
 }

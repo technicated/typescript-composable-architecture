@@ -6,7 +6,7 @@ test('EmptyReducer', (t) => {
     counter: Property<number> = 0
   }
 
-  const store = new TestStore(State.make(), EmptyReducer())
+  const store = new TestStore(State.make(), () => EmptyReducer())
 
   store.send(42)
   store.send('hello world')

@@ -1,7 +1,8 @@
 import { Case, makeEnum } from '@technicated/ts-enums'
 import test from 'ava'
-import { interval, map, of, SchedulerLike } from 'rxjs'
+import { interval, map, of } from 'rxjs'
 import {
+  dependency,
   Effect,
   EmptyReducer,
   IdentifiedAction,
@@ -11,11 +12,52 @@ import {
   Property,
   Reduce,
   Reducer,
-  ReducerBuilder,
+  registerDependency,
+  SomeReducerOf,
   TcaState,
+  TestDependencyKey,
   TestScheduler,
   TestStore,
 } from '../..'
+
+interface UuidGenerator {
+  generate(): string
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace UuidGenerator {
+  export const unimplemented: UuidGenerator = {
+    generate(): string {
+      throw new Error('unimplemented dependency "uuid"')
+    },
+  }
+
+  export function constantValue(value: number): string {
+    return `00000000-0000-0000-0000-${`${value}`.padStart(12, '0')}`
+  }
+
+  export class Incrementing implements UuidGenerator {
+    private i = 0
+
+    generate(): string {
+      return `00000000-0000-0000-0000-${`${this.i++}`.padStart(12, '0')}`
+    }
+  }
+}
+
+const uuid = Symbol()
+
+declare module '../..' {
+  interface DependencyValues {
+    [uuid]: UuidGenerator
+  }
+}
+
+class UuidKey extends TestDependencyKey<UuidGenerator> {
+  readonly testValue = UuidGenerator.unimplemented
+}
+
+registerDependency(uuid, UuidKey)
 
 test('ForEachReducer, element action', async (t) => {
   class Row extends TcaState {
@@ -37,16 +79,17 @@ test('ForEachReducer, element action', async (t) => {
   const ElementAction = makeEnum<ElementAction>()
 
   class ElementReducer extends Reducer<ElementState, ElementAction> {
-    body(): ReducerBuilder<ElementState, ElementAction> {
+    override body(): SomeReducerOf<ElementState, ElementAction> {
       return EmptyReducer().forEach(
         KeyPath.for(ElementState).appending('rows'),
         ElementAction('rows'),
-        Reduce((state, action) => {
-          state.value = action
-          return action.length === 0
-            ? Effect.observable(of('Empty'))
-            : Effect.none()
-        }),
+        () =>
+          Reduce((state, action) => {
+            state.value = action
+            return action.length === 0
+              ? Effect.observable(of('Empty'))
+              : Effect.none()
+          }),
       )
     }
   }
@@ -59,7 +102,7 @@ test('ForEachReducer, element action', async (t) => {
         new Row(3, 'Blob Sr.'),
       ]),
     }),
-    new ElementReducer(),
+    () => new ElementReducer(),
   )
 
   await store.send(
@@ -109,11 +152,9 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   const TimerAction = makeEnum<TimerAction>()
 
   class TimerReducer extends Reducer<TimerState, TimerAction> {
-    constructor(private readonly scheduler: SchedulerLike) {
-      super()
-    }
+    private readonly scheduler = dependency('scheduler')
 
-    body(): ReducerBuilder<TimerState, TimerAction> {
+    override body(): SomeReducerOf<TimerState, TimerAction> {
       return Reduce((state, action) => {
         switch (action.case) {
           case 'start':
@@ -146,18 +187,13 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   const TimersAction = makeEnum<TimersAction>()
 
   class TimersReducer extends Reducer<TimersState, TimersAction> {
-    constructor(
-      private readonly scheduler: SchedulerLike,
-      private readonly uuid: () => string,
-    ) {
-      super()
-    }
+    private readonly uuid = dependency(uuid)
 
-    body(): ReducerBuilder<TimersState, TimersAction> {
+    override body(): SomeReducerOf<TimersState, TimersAction> {
       return Reduce<TimersState, TimersAction>((state, action) => {
         switch (action.case) {
           case 'addTimer':
-            state.timers.append(new TimerState(this.uuid()))
+            state.timers.append(new TimerState(this.uuid.generate()))
             return Effect.none()
 
           case 'removeLastTimer':
@@ -170,30 +206,31 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
       }).forEach(
         KeyPath.for(TimersState).appending('timers'),
         TimersAction('timers'),
-        new TimerReducer(this.scheduler),
+        () => new TimerReducer(),
       )
     }
-  }
-
-  let i = 0
-  const uuidGenerator = (value?: number) => {
-    return `00000000-0000-0000-0000-${`${value ?? i++}`.padStart(12, '0')}`
   }
 
   const scheduler = new TestScheduler()
   const store = new TestStore(
     TimersState.make(),
-    new TimersReducer(scheduler, uuidGenerator),
+    () => new TimersReducer(),
+    (dependencies) => {
+      dependencies.scheduler = scheduler
+      dependencies[uuid] = new UuidGenerator.Incrementing()
+    },
   )
 
   await store.send(TimersAction.addTimer(), (state) => {
-    state.timers = IdentifiedArray.from([new TimerState(uuidGenerator(0))])
+    state.timers = IdentifiedArray.from([
+      new TimerState(UuidGenerator.constantValue(0)),
+    ])
   })
 
   await store.send(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(0),
+        id: UuidGenerator.constantValue(0),
         action: TimerAction.start(),
       }),
     ),
@@ -204,7 +241,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   await store.receive(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(0),
+        id: UuidGenerator.constantValue(0),
         action: TimerAction.tick(),
       }),
     ),
@@ -218,7 +255,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   await store.receive(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(0),
+        id: UuidGenerator.constantValue(0),
         action: TimerAction.tick(),
       }),
     ),
@@ -231,8 +268,8 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
 
   await store.send(TimersAction.addTimer(), (state) => {
     state.timers = IdentifiedArray.from([
-      new TimerState(uuidGenerator(0), 2),
-      new TimerState(uuidGenerator(1)),
+      new TimerState(UuidGenerator.constantValue(0), 2),
+      new TimerState(UuidGenerator.constantValue(1)),
     ])
   })
 
@@ -241,7 +278,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   await store.receive(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(0),
+        id: UuidGenerator.constantValue(0),
         action: TimerAction.tick(),
       }),
     ),
@@ -255,7 +292,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   await store.send(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(1),
+        id: UuidGenerator.constantValue(1),
         action: TimerAction.start(),
       }),
     ),
@@ -266,7 +303,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   await store.receive(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(0),
+        id: UuidGenerator.constantValue(0),
         action: TimerAction.tick(),
       }),
     ),
@@ -280,7 +317,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   await store.receive(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(1),
+        id: UuidGenerator.constantValue(1),
         action: TimerAction.tick(),
       }),
     ),
@@ -292,7 +329,9 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   )
 
   await store.send(TimersAction.removeLastTimer(), (state) => {
-    state.timers = IdentifiedArray.from([new TimerState(uuidGenerator(0), 4)])
+    state.timers = IdentifiedArray.from([
+      new TimerState(UuidGenerator.constantValue(0), 4),
+    ])
   })
 
   scheduler.advance({ by: 1000 })
@@ -300,7 +339,7 @@ test('ForEachReducer, automatic effect cancellation', async (t) => {
   await store.receive(
     TimersAction.timers(
       IdentifiedAction.element({
-        id: uuidGenerator(0),
+        id: UuidGenerator.constantValue(0),
         action: TimerAction.tick(),
       }),
     ),
