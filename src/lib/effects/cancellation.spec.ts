@@ -7,7 +7,7 @@ import {
   Property,
   Reduce,
   Reducer,
-  ReducerBuilder,
+  SomeReducerOf,
   Store,
   TcaState,
 } from '../..'
@@ -29,7 +29,7 @@ type Action =
 const Action = makeEnum<Action>()
 
 class CounterReducer extends Reducer<State, Action> {
-  body(): ReducerBuilder<State, Action> {
+  override body(): SomeReducerOf<State, Action> {
     return Reduce((state, action) => {
       switch (action.case) {
         case 'decrement':
@@ -59,7 +59,7 @@ test('Effect.cancellable', (t) => {
   const testScheduler = makeTestScheduler(t)
 
   testScheduler.run(({ expectObservable }) => {
-    const store = new Store(State.make(), new CounterReducer())
+    const store = new Store(State.make(), () => new CounterReducer())
 
     expectObservable(store.state$).toBe(
       'a 499ms b 999ms c 999ms d 499ms e 6999ms f',

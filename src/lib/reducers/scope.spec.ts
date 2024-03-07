@@ -1,17 +1,18 @@
 import { Case, makeEnum } from '@technicated/ts-enums'
 import test from 'ava'
-import { interval, map, SchedulerLike } from 'rxjs'
+import { interval, map } from 'rxjs'
 import {
+  dependency,
   Effect,
   KeyPath,
   Property,
   Reduce,
   Reducer,
-  ReducerBuilder,
   Scope,
-  Store,
+  SomeReducerOf,
   TcaState,
   TestScheduler,
+  TestStore,
 } from '../..'
 
 class CounterState extends TcaState {
@@ -28,11 +29,9 @@ type CounterAction =
 const CounterAction = makeEnum<CounterAction>()
 
 class CounterReducer extends Reducer<CounterState, CounterAction> {
-  constructor(private readonly scheduler: SchedulerLike) {
-    super()
-  }
+  private readonly scheduler = dependency('scheduler')
 
-  body(): ReducerBuilder<CounterState, CounterAction> {
+  override body(): SomeReducerOf<CounterState, CounterAction> {
     return Reduce((state, action) => {
       switch (action.case) {
         case 'decrement':
@@ -71,7 +70,7 @@ type FeatureA_Action = Case<'append', string> | Case<'replace', string>
 const FeatureA_Action = makeEnum<FeatureA_Action>()
 
 class FeatureA_Reducer extends Reducer<FeatureA_State, FeatureA_Action> {
-  body(): ReducerBuilder<FeatureA_State, FeatureA_Action> {
+  override body(): SomeReducerOf<FeatureA_State, FeatureA_Action> {
     return Reduce((state, action) => {
       switch (action.case) {
         case 'append':
@@ -94,7 +93,7 @@ type FeatureB_Action = Case<'add', number> | Case<'replace', number>
 const FeatureB_Action = makeEnum<FeatureB_Action>()
 
 class FeatureB_Reducer extends Reducer<FeatureB_State, FeatureB_Action> {
-  body(): ReducerBuilder<FeatureB_State, FeatureB_Action> {
+  override body(): SomeReducerOf<FeatureB_State, FeatureB_Action> {
     return Reduce((state, action) => {
       switch (action.case) {
         case 'add':
@@ -123,17 +122,17 @@ type FeatureAction =
 const FeatureAction = makeEnum<FeatureAction>()
 
 class FeatureReducer extends Reducer<FeatureState, FeatureAction> {
-  body(): ReducerBuilder<FeatureState, FeatureAction> {
+  override body(): SomeReducerOf<FeatureState, FeatureAction> {
     return [
       Scope(
         FeatureState('featureA'),
         FeatureAction('featureA'),
-        new FeatureA_Reducer(),
+        () => new FeatureA_Reducer(),
       ),
       Scope(
         FeatureState('featureB'),
         FeatureAction('featureB'),
-        new FeatureB_Reducer(),
+        () => new FeatureB_Reducer(),
       ),
     ]
   }
@@ -152,11 +151,7 @@ type AppAction =
 const AppAction = makeEnum<AppAction>()
 
 class AppReducer extends Reducer<AppState, AppAction> {
-  constructor(private readonly scheduler: SchedulerLike) {
-    super()
-  }
-
-  body(): ReducerBuilder<AppState, AppAction> {
+  override body(): SomeReducerOf<AppState, AppAction> {
     return [
       Reduce((state, action) => {
         switch (action.case) {
@@ -178,78 +173,124 @@ class AppReducer extends Reducer<AppState, AppAction> {
       Scope(
         KeyPath.for<AppState>().appending('counter'),
         AppAction('counter'),
-        new CounterReducer(this.scheduler),
+        () => new CounterReducer(),
       ),
       Scope(
         KeyPath.for<AppState>().appending('feature'),
         AppAction('feature'),
-        new FeatureReducer(),
+        () => new FeatureReducer(),
       ),
     ]
   }
 }
 
-test('Scope, KeyPath', (t) => {
+test('Scope, KeyPath', async (t) => {
   const scheduler = new TestScheduler()
-  const store = new Store(AppState.make(), new AppReducer(scheduler))
-  t.deepEqual(store.state, AppState.make())
 
-  store.send(AppAction.counter(CounterAction.increment()))
-  t.deepEqual(
-    store.state,
-    AppState.make({ counter: CounterState.make({ counter: 1 }) }),
+  const store = new TestStore(
+    AppState.make(),
+    () => new AppReducer(),
+    (dependencies) => {
+      dependencies.scheduler = scheduler
+    },
   )
 
-  store.send(AppAction.counter(CounterAction.toggleTimer()))
-  scheduler.advance({ by: 3000 })
-  t.deepEqual(
-    store.state,
-    AppState.make({
-      counter: CounterState.make({ counter: 4, isTimerOn: true }),
-    }),
-  )
+  await store.run(async () => {
+    await store.send(AppAction.counter(CounterAction.increment()), (state) => {
+      state.counter.counter = 1
+    })
 
-  store.send(AppAction.counter(CounterAction.toggleTimer()))
-  t.deepEqual(
-    store.state,
-    AppState.make({ counter: CounterState.make({ counter: 4 }) }),
-  )
+    await store.send(
+      AppAction.counter(CounterAction.toggleTimer()),
+      (state) => {
+        state.counter.isTimerOn = true
+      },
+    )
+
+    scheduler.advance({ by: 3000 })
+
+    await store.receive(
+      AppAction.counter(CounterAction.timerTicked()),
+      (state) => {
+        state.counter.counter = 2
+      },
+    )
+
+    await store.receive(
+      AppAction.counter(CounterAction.timerTicked()),
+      (state) => {
+        state.counter.counter = 3
+      },
+    )
+
+    await store.receive(
+      AppAction.counter(CounterAction.timerTicked()),
+      (state) => {
+        state.counter.counter = 4
+      },
+    )
+
+    await store.send(
+      AppAction.counter(CounterAction.toggleTimer()),
+      (state) => {
+        state.counter.isTimerOn = false
+      },
+    )
+  })
+
+  t.pass()
 })
 
-test('Scope, CasePath', (t) => {
+test('Scope, CasePath', async (t) => {
   const scheduler = new TestScheduler()
-  const store = new Store(AppState.make(), new AppReducer(scheduler))
-  t.deepEqual(store.state, AppState.make())
 
-  store.send(
-    AppAction.feature(
-      FeatureAction.featureA(FeatureA_Action.append('It works')),
-    ),
+  const store = new TestStore(
+    AppState.make(),
+    () => new AppReducer(),
+    (dependencies) => {
+      dependencies.scheduler = scheduler
+    },
   )
-  store.send(
-    AppAction.feature(FeatureAction.featureA(FeatureA_Action.append('!'))),
-  )
-  t.deepEqual(
-    store.state,
-    AppState.make({
-      feature: FeatureState.featureA(
-        FeatureA_State.make({ value: 'It works!' }),
+
+  await store.run(async () => {
+    await store.send(
+      AppAction.feature(
+        FeatureAction.featureA(FeatureA_Action.append('It works')),
       ),
-    }),
-  )
+      (state) => {
+        state.feature = FeatureState.featureA(
+          FeatureA_State.make({ value: 'It works' }),
+        )
+      },
+    )
 
-  store.send(AppAction.switchFeature())
-  t.deepEqual(
-    store.state,
-    AppState.make({ feature: FeatureState.featureB(FeatureB_State.make()) }),
-  )
+    await store.send(
+      AppAction.feature(FeatureAction.featureA(FeatureA_Action.append('!'))),
+      (state) => {
+        state.feature = FeatureState.featureA(
+          FeatureA_State.make({ value: 'It works!' }),
+        )
+      },
+    )
 
-  store.send(AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(1))))
-  store.send(AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(2))))
-  t.deepEqual(
-    store.state,
-    AppState.make({
-      feature: FeatureState.featureB(FeatureB_State.make({ value: 3 })),
-    }),
-  )
+    await store.send(AppAction.switchFeature(), (state) => {
+      state.feature = FeatureState.featureB(FeatureB_State.make())
+    })
+
+    await store.send(
+      AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(1))),
+      (state) => {
+        state.feature = FeatureState.featureB(FeatureB_State.make({ value: 1 }))
+      },
+    )
+
+    await store.send(
+      AppAction.feature(FeatureAction.featureB(FeatureB_Action.add(2))),
+      (state) => {
+        state.feature = FeatureState.featureB(FeatureB_State.make({ value: 3 }))
+      },
+    )
+  })
+
+  t.pass()
 })

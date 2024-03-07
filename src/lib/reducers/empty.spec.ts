@@ -1,17 +1,18 @@
 import test from 'ava'
 import { EmptyReducer, Property, TcaState, TestStore } from '../..'
 
-test('EmptyReducer', (t) => {
+test('EmptyReducer', async (t) => {
   class State extends TcaState {
     counter: Property<number> = 0
   }
 
-  const store = new TestStore(State.make(), EmptyReducer())
+  const store = new TestStore(State.make(), () => EmptyReducer())
 
-  store.send(42)
-  store.send('hello world')
-  store.send(true)
+  await store.run(async () => {
+    await store.send(42)
+    await store.send('hello world')
+    await store.send(true)
+  })
 
-  store.complete()
   t.pass()
 })

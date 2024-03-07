@@ -3,6 +3,8 @@ import { detailedDiff } from 'deep-object-diff'
 import { produce } from 'immer'
 import { map, ReplaySubject, take, tap } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
+import { dependency, withDependencies } from './dependencies'
+import { DependencyValues } from './dependencies/dependency-values'
 import { Effect } from './effect'
 import { areEqual } from './internal'
 import { buildReducer, Reducer, ReducerBuilder } from './reducer'
@@ -25,13 +27,14 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   State,
   TestAction<Action>
 > {
+  public readonly dependencies = dependency('self')
   public readonly effectDidSubscribe = new ReplaySubject<void>(1)
   public readonly inFlightEffects = new Set<LongLivingEffect<Action>>()
   public readonly receivedActions: Array<{ action: Action; state: State }> = []
   public state: State
 
   constructor(
-    private readonly base: Reducer<State, Action>,
+    private readonly base: ReducerBuilder<State, Action>,
     initialState: State,
   ) {
     super()
@@ -39,11 +42,13 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
   }
 
   reduce(state: State, action: TestAction<Action>): Effect<TestAction<Action>> {
-    let effects: Effect<Action>
+    const effects = withDependencies(
+      () => this.dependencies,
+      () => buildReducer(this.base).reduce(state, action.action),
+    )
 
     switch (action.case) {
       case 'receive':
-        effects = this.base.reduce(state, action.action)
         this.receivedActions.push({
           action: action.action,
           state: this.snapshot(state),
@@ -51,7 +56,6 @@ class TestReducer<State extends TcaState, Action> extends Reducer<
         break
 
       case 'send':
-        effects = this.base.reduce(state, action.action)
         this.state = this.snapshot(state)
         break
     }
@@ -83,11 +87,19 @@ export class TestStore<State extends TcaState, Action> {
   private readonly reducer: TestReducer<State, Action>
   private readonly store: Store<State, TestAction<Action>>
 
-  constructor(initialState: State, reducer: ReducerBuilder<State, Action>) {
-    const r = new TestReducer(buildReducer(reducer), initialState)
+  constructor(
+    initialState: State,
+    reducer: ReducerBuilder<State, Action>,
+    prepareDependencies: (
+      dependencies: DependencyValues,
+    ) => DependencyValues | void = () => {},
+  ) {
+    const r = withDependencies(prepareDependencies, () => {
+      return new TestReducer(reducer, initialState)
+    })
 
     this.reducer = r
-    this.store = new Store(initialState, r)
+    this.store = new Store(initialState, () => r)
   }
 
   complete(): void {
@@ -136,25 +148,9 @@ etc.), then make sure those effects are torn down by marking the effect \
     this.receiveImpl(action, updateStateToExpectedResult)
   }
 
-  private async receiveAction(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve))
-
-    if (this.reducer.receivedActions.length === 0) {
-      if (this.reducer.inFlightEffects.size > 0) {
-        throw new TestStoreError(
-          'There are effects in-flight. If the effect that delivers this \
-action uses a scheduler (via "timer", "interval", "delay", etc.), make sure \
-that you wait enough time for it to perform the effect. If you are using a \
-test scheduler, advance it so that the effects may complete, or consider using \
-an immediate scheduler to immediately perform the effect instead.',
-        )
-      } else {
-        throw new TestStoreError(
-          'There are no in-flight effects that could deliver this action. \
-Could the effect you expected to deliver this action have been cancelled?',
-        )
-      }
-    }
+  async run(callback: () => Promise<void>): Promise<void> {
+    await callback()
+    this.complete()
   }
 
   async send(
@@ -241,6 +237,27 @@ expected, omit the trailing closure.`)
       expectationFailure(expectedWhenGivenPreviousState)
     } else {
       tryUnnecessaryModifyFailure()
+    }
+  }
+
+  private async receiveAction(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve))
+
+    if (this.reducer.receivedActions.length === 0) {
+      if (this.reducer.inFlightEffects.size > 0) {
+        throw new TestStoreError(
+          'There are effects in-flight. If the effect that delivers this \
+action uses a scheduler (via "timer", "interval", "delay", etc.), make sure \
+that you wait enough time for it to perform the effect. If you are using a \
+test scheduler, advance it so that the effects may complete, or consider using \
+an immediate scheduler to immediately perform the effect instead.',
+        )
+      } else {
+        throw new TestStoreError(
+          'There are no in-flight effects that could deliver this action. \
+Could the effect you expected to deliver this action have been cancelled?',
+        )
+      }
     }
   }
 

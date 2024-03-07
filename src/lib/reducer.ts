@@ -2,23 +2,28 @@ import { current } from 'immer'
 import { Effect } from './effect'
 import { TcaState } from './state'
 
-export type ReducerBuilder<State extends TcaState, Action> =
+export type ReducerBuilder<State extends TcaState, Action> = () =>
   | Reducer<State, Action>
   | Array<Reducer<State, Action>>
 
 export function buildReducer<State extends TcaState, Action>(
   builder: ReducerBuilder<State, Action>,
 ): Reducer<State, Action> {
-  return Array.isArray(builder) ? new SequenceMany(builder) : builder
+  const reducer = builder()
+  return Array.isArray(reducer) ? new SequenceMany(reducer) : reducer
 }
 
+export type SomeReducerOf<State extends TcaState, Action> =
+  | Reducer<State, Action>
+  | Array<Reducer<State, Action>>
+
 export abstract class Reducer<in out State extends TcaState, in out Action> {
-  body(): ReducerBuilder<State, Action> {
+  body(): SomeReducerOf<State, Action> {
     return new NeverReducer()
   }
 
   reduce(state: State, action: Action): Effect<Action> {
-    return buildReducer(this.body()).reduce(state, action)
+    return buildReducer(() => this.body()).reduce(state, action)
   }
 
   snapshot(state: State): State {

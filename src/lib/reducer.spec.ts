@@ -1,5 +1,5 @@
 import test from 'ava'
-import { Effect, Property, Reducer, ReducerBuilder, TcaState } from '..'
+import { Effect, Property, Reducer, SomeReducerOf, TcaState } from '..'
 
 test('Reducer not implemented failure', (t) => {
   class MyReducer extends Reducer<never, never> {}
@@ -35,13 +35,13 @@ test('Reducer body sequencing', (t) => {
   }
 
   class MyReducer12 extends Reducer<State, Action> {
-    override body(): ReducerBuilder<State, Action> {
+    override body(): SomeReducerOf<State, Action> {
       return [new Reducer1(), new Reducer2()]
     }
   }
 
   class MyReducer21 extends Reducer<State, Action> {
-    override body(): ReducerBuilder<State, Action> {
+    override body(): SomeReducerOf<State, Action> {
       return [new Reducer2(), new Reducer1()]
     }
   }
