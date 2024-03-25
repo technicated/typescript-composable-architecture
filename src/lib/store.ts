@@ -1,40 +1,147 @@
-import { CasePath, EnumShape } from '@technicated/ts-enums'
-import { produce } from 'immer'
-import { BehaviorSubject, map, Observable, Subscription } from 'rxjs'
-import { v4 as uuidv4 } from 'uuid'
+import {
+  Case,
+  CasePath,
+  EnumShape,
+  HKT,
+  makeEnum1,
+} from '@technicated/ts-enums'
+import { map, Observable } from 'rxjs'
 import { KeyPath } from './keypath'
-import { buildReducer, Reducer, ReducerBuilder } from './reducer'
-import { EmptyReducer } from './reducers'
+import { buildReducer, ReducerBuilder } from './reducer'
+import { RootStore } from './root-store'
 import { isTcaState, TcaState } from './state'
 
-export class Store<State extends TcaState, Action> {
-  private readonly bufferedActions: Action[] = []
-  private readonly effectSubscriptions: Partial<Record<string, Subscription>> =
-    {}
-  private isSending = false
-  private readonly reducer: Reducer<State, Action>
-  private readonly state_: BehaviorSubject<State>
-
-  get state$(): Observable<State> {
-    return this.state_.asObservable()
+class PartialToStateProto<State> {
+  apply(this: PartialToState<State>, state: unknown): State {
+    switch (this.case) {
+      case 'closure':
+        return this.p(state)
+      case 'keyPath':
+        return this.p.get(state)
+      case 'appended':
+        return this.p.keyPath.get(this.p.base(state))
+    }
   }
 
-  get state(): State {
-    return this.state_.value
-  }
-
-  constructor(initialState: State, reducer: ReducerBuilder<State, Action>) {
-    if (!isTcaState(initialState)) {
-      throw new Error(
-        'The object being passed as the Store state is not a TcaState object',
+  appending<ChildState>(
+    this: PartialToState<State>,
+    other: PartialToState<ChildState>,
+  ): PartialToState<ChildState> {
+    if (this.case === 'keyPath' && other.case === 'keyPath') {
+      return PartialToState.keyPath(
+        (this.p as KeyPath<object, object>).appending(other.p),
       )
     }
 
-    this.reducer = buildReducer(reducer)
-    this.state_ = new BehaviorSubject(initialState)
+    if (this.case === 'closure' && other.case === 'keyPath') {
+      return PartialToState.appended({ base: this.p, keyPath: other.p })
+    }
+
+    if (this.case === 'appended' && other.case === 'keyPath') {
+      return PartialToState.appended({
+        base: this.p.base,
+        keyPath: this.p.keyPath.appending(other.p),
+      })
+    }
+
+    return PartialToState.closure((state) => other.apply(this.apply(state)))
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyKeyPath = KeyPath<any, any>
+
+type PartialToState<State> = PartialToStateProto<State> &
+  (
+    | Case<'closure', (state: unknown) => State>
+    | Case<'keyPath', AnyKeyPath>
+    | Case<
+        'appended',
+        { base: (state: unknown) => unknown; keyPath: AnyKeyPath }
+      >
+  )
+
+interface PartialToStateHKT extends HKT {
+  readonly type: PartialToState<this['_A']>
+}
+
+const PartialToState = makeEnum1<PartialToStateHKT>({
+  proto: PartialToStateProto,
+})
+
+const internal = Symbol()
+type Internal = typeof internal
+
+type StoreCtorArgs<State extends TcaState, Action> =
+  | [initialState: State, reducer: ReducerBuilder<State, Action>]
+  | [
+      internal: Internal,
+      rootStore: RootStore,
+      toState: PartialToState<State>,
+      fromAction: (action: Action) => unknown,
+    ]
+
+export class Store<State extends TcaState, Action> {
+  private readonly rootStore: RootStore
+  private readonly toState: PartialToState<State>
+  private readonly fromAction: (action: Action) => unknown
+
+  get state$(): Observable<State> {
+    return this.rootStore.state$.pipe(map((state) => this.toState.apply(state)))
+  }
+
+  get state(): State {
+    return this.toState.apply(this.rootStore.state)
+  }
+
+  constructor(initialState: State, reducer: ReducerBuilder<State, Action>)
+  constructor(
+    internal: Internal,
+    rootStore: RootStore,
+    toState: PartialToState<State>,
+    fromAction: (action: Action) => unknown,
+  )
+  constructor(...args: StoreCtorArgs<State, Action>) {
+    switch (args.length) {
+      case 2: {
+        const [initialState, reducer] = args
+
+        if (!isTcaState(initialState)) {
+          throw new Error(
+            'The object being passed as the Store state is not a TcaState object',
+          )
+        }
+
+        this.rootStore = RootStore.create(initialState, buildReducer(reducer))
+        this.toState = PartialToState.keyPath(KeyPath.for<State>())
+        this.fromAction = (action) => action
+        break
+      }
+      case 4:
+        ;[, this.rootStore, this.toState, this.fromAction] = args
+        break
+    }
   }
 
   scope<
+    State extends TcaState,
+    Action extends EnumShape,
+    ChildState extends TcaState,
+    ChildAction,
+  >(
+    this: Store<State, Action>,
+    state: KeyPath<State, ChildState>,
+    fromChildAction: CasePath<Action, ChildAction>,
+  ): Store<ChildState, ChildAction> {
+    return new Store<ChildState, ChildAction>(
+      internal,
+      this.rootStore,
+      this.toState.appending(PartialToState.keyPath(state)),
+      (action) => this.fromAction(fromChildAction.embed(action)),
+    )
+  }
+
+  /*scope<
     State extends TcaState,
     Action extends EnumShape,
     ChildState extends TcaState,
@@ -109,40 +216,9 @@ export class Store<State extends TcaState, Action> {
         },
       },
     )
-  }
+  }*/
 
   send(action: Action): void {
-    this.bufferedActions.push(action)
-    if (this.isSending) return
-
-    this.isSending = true
-
-    const nextState = produce(this.state, (draft: State) => {
-      while (this.bufferedActions.length) {
-        // The check in the line before ensures this is valid
-        //                                                v
-        const currentAction = this.bufferedActions.shift()!
-        const effect = this.reducer.reduce(draft, currentAction)
-
-        if (effect.source) {
-          let didComplete = false
-          const uuid = uuidv4()
-          const effectSubscription = effect.source.subscribe({
-            complete: () => {
-              didComplete = true
-              delete this.effectSubscriptions[uuid]
-            },
-            next: (effectAction) => this.send(effectAction),
-          })
-
-          if (!didComplete) {
-            this.effectSubscriptions[uuid] = effectSubscription
-          }
-        }
-      }
-    })
-
-    this.isSending = false
-    this.state_.next(nextState)
+    this.rootStore.send(this.fromAction(action))
   }
 }
