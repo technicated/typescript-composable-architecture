@@ -1,1 +1,1 @@
-export * from './key-path'
+export * from './key-path-2'

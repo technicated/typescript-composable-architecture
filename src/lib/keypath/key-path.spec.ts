@@ -1,5 +1,6 @@
 import test from 'ava'
 import { KeyPath } from '../..'
+import * as kp3 from './key-path-3'
 
 interface Pet {
   name: string
@@ -144,4 +145,49 @@ test('KeyPath, modify editing value', (t) => {
       pet: { name: 'Jerry' },
     }),
   )
+})
+
+test('kp3', (t) => {
+  class Pet {
+    constructor(
+      public name: string,
+      public owner: User,
+    ) {}
+  }
+
+  class User {
+    constructor(
+      public name: string,
+      public friends: User[],
+      public mam: [User, User],
+      public pet: Pet,
+    ) {}
+  }
+  /*
+  const val1 = kp3.KeyPath(User)
+  const val2 = val1.name
+  const val3 = val1.friends
+  const val4 = val1.mam[0].mam[0]
+  const val5 = val1.mam[0].mam[1].pet
+
+  void val1
+  void val2
+  void val3
+  void val4
+  void val5*/
+
+  const u = new User(
+    'user',
+    [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    undefined as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    new Pet('a', undefined as any),
+  )
+
+  kp3.KeyPath(User).pet[kp3.set](u, new Pet('b', u))
+
+  t.falsy(u)
+
+  t.fail('nope')
 })
