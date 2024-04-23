@@ -6,8 +6,10 @@ import {
   makeEnum1,
 } from '@technicated/ts-enums'
 import { map, Observable } from 'rxjs'
+import { IdentifiedArray } from './identified-array'
 import { KeyPath } from './keypath'
 import { buildReducer, ReducerBuilder } from './reducer'
+import { IdentifiedAction } from './reducers'
 import { RootStore } from './root-store'
 import { isTcaState, TcaState } from './state'
 
@@ -141,82 +143,61 @@ export class Store<State extends TcaState, Action> {
     )
   }
 
-  /*scope<
+  ifScope<
     State extends TcaState,
     Action extends EnumShape,
     ChildState extends TcaState,
     ChildAction,
   >(
     this: Store<State, Action>,
-    toChildState: KeyPath<State, ChildState>,
-    toChildAction: CasePath<Action, ChildAction>,
-  ): Store<ChildState, ChildAction> {
-    return Object.defineProperties(
-      new Store<ChildState, ChildAction>(
-        toChildState.get(this.state),
-        EmptyReducer(),
-      ),
-      {
-        state$: {
-          configurable: true,
-          enumerable: true,
-          get: () => this.state$.pipe(map((state) => toChildState.get(state))),
-        },
-        state: {
-          configurable: true,
-          enumerable: true,
-          get: () => toChildState.get(this.state),
-        },
-        send: {
-          configurable: true,
-          enumerable: true,
-          value: (action: ChildAction) =>
-            this.send(toChildAction.embed(action)),
-          writable: false,
-        },
-      },
-    )
-  }
-
-  scopeIf<
-    State extends TcaState,
-    Action extends EnumShape,
-    ChildState extends TcaState,
-    ChildAction,
-  >(
-    this: Store<State, Action>,
-    toChildState: KeyPath<State, ChildState | null>,
-    toChildAction: CasePath<Action, ChildAction>,
+    state: KeyPath<State, ChildState | null>,
+    fromChildAction: CasePath<Action, ChildAction>,
   ): Store<ChildState, ChildAction> | null {
-    const initialState = toChildState.get(this.state)
+    const optionalChildState = state.get(this.state)
 
-    if (initialState === null) {
+    if (optionalChildState === null) {
       return null
     }
 
-    return Object.defineProperties(
-      new Store<ChildState, ChildAction>(initialState, EmptyReducer()),
-      {
-        state$: {
-          configurable: true,
-          enumerable: true,
-          get: () => this.state$.pipe(map((state) => toChildState.get(state))),
-        },
-        state: {
-          configurable: true,
-          enumerable: true,
-          get: () => toChildState.get(this.state),
-        },
-        send: {
-          configurable: true,
-          enumerable: true,
-          value: (action: ChildAction) =>
-            this.send(toChildAction.embed(action)),
-          writable: false,
-        },
-      },
+    let childState = optionalChildState
+
+    return new Store<ChildState, ChildAction>(
+      internal,
+      this.rootStore,
+      PartialToState.closure((s) => {
+        childState = state.get(s as State) ?? childState
+        return childState
+      }),
+      (action) => this.fromAction(fromChildAction.embed(action)),
     )
-  }*/
+  }
+
+  forEachScope<
+    State extends TcaState,
+    Action extends EnumShape,
+    ElementId,
+    ElementState extends TcaState,
+    ElementAction,
+  >(
+    this: Store<State, Action>,
+    toState: KeyPath<State, IdentifiedArray<ElementId, ElementState>>,
+    toAction: CasePath<Action, IdentifiedAction<ElementId, ElementAction>>,
+  ): Array<Store<ElementState, ElementAction>> {
+    const identifiedArray = toState.get(this.state)
+
+    return identifiedArray.ids.map((id) => {
+      const element = identifiedArray.getById(id)!
+
+      return new Store<ElementState, ElementAction>(
+        internal,
+        this.rootStore,
+        PartialToState.closure((state) => {
+          return toState.get(state as State).getById(id) ?? element
+        }),
+        (action) => toAction.embed(IdentifiedAction.element({ id, action })),
+      )
+    })
+  }
 
   send(action: Action): void {
     this.rootStore.send(this.fromAction(action))
