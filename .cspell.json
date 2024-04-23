@@ -24,6 +24,8 @@
     "untracked",
 
     "hashability",
+    "hashable",
+    "hasher",
     "immer",
     "immerable",
     "pointfreeco",

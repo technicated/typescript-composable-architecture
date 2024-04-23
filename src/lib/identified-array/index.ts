@@ -5,20 +5,16 @@ import {
   HasCustomEquality,
   HasCustomHash,
   Hasher,
-  isEqual,
+  isEqualTo,
 } from '../internal'
 
 interface Identifiable<ID> {
   id: ID
 }
 
-export const _elements = Symbol()
-
-/* eslint-disable indent */
-export class IdentifiedArray<ID, Element>
-  implements HasCustomEquality<IdentifiedArray<ID, Element>>, HasCustomHash
+// prettier-ignore
+export class IdentifiedArray<ID, Element> implements HasCustomEquality, HasCustomHash
 {
-  /* eslint-enable indent */
   static empty<Element extends Identifiable<unknown>>(): IdentifiedArray<
     Element['id'],
     Element
@@ -46,7 +42,7 @@ export class IdentifiedArray<ID, Element>
     return new IdentifiedArray(elements, id ?? ((element) => element.id))
   }
 
-  private [_elements] = new Map<ID, Element>()
+  private _elements = new Map<ID, Element>()
   private _ids: ID[] = []
 
   get ids(): ID[] {
@@ -61,17 +57,17 @@ export class IdentifiedArray<ID, Element>
 
     for (const element of elements) {
       const elementId = id(element)
-      this[_elements].set(elementId, element)
+      this._elements.set(elementId, element)
       this._ids.push(elementId)
     }
 
-    Object.defineProperty(this, _elements, { enumerable: false })
+    Object.defineProperty(this, '_elements', { enumerable: false })
     Object.defineProperty(this, 'id', { enumerable: false })
   }
 
   append(element: Element): void {
     const elementId = this.id(element)
-    this[_elements].set(elementId, element)
+    this._elements.set(elementId, element)
     this._ids.push(elementId)
   }
 
@@ -83,10 +79,10 @@ export class IdentifiedArray<ID, Element>
   getById(id: ID): Element | null {
     console.log(
       'proto',
-      Object.getPrototypeOf(this[_elements]),
-      this[_elements].constructor,
+      Object.getPrototypeOf(this._elements),
+      this._elements.constructor,
     )
-    return this[_elements].get(id) ?? null
+    return this._elements.get(id) ?? null
   }
 
   modifyAtIndex(
@@ -101,10 +97,10 @@ export class IdentifiedArray<ID, Element>
   }
 
   modifyForId(id: ID, update: (element: Element) => Element | void): void {
-    const element = this[_elements].get(id)
+    const element = this._elements.get(id)
 
     if (element) {
-      this[_elements].set(id, update(element) ?? element)
+      this._elements.set(id, update(element) ?? element)
     }
   }
 
@@ -112,16 +108,16 @@ export class IdentifiedArray<ID, Element>
     const elementId = this._ids.pop()
 
     if (elementId) {
-      this[_elements].delete(elementId)
+      this._elements.delete(elementId)
     }
   }
 
   [combineInto](hasher: Hasher): void {
-    hasher.combine(this[_elements])
+    hasher.combine(this._elements)
   }
 
-  [isEqual](other: IdentifiedArray<ID, Element>): boolean {
-    return areEqual(this[_elements], other[_elements])
+  [isEqualTo](other: this): boolean {
+    return areEqual(this._elements, other._elements)
   }
 
   *[Symbol.iterator](): Generator<Element> {

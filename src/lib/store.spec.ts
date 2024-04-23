@@ -1,10 +1,8 @@
 import { Case, makeEnum } from '@technicated/ts-enums'
 import test, { ExecutionContext } from 'ava'
-import { immerable, produce } from 'immer'
 import { delay, of } from 'rxjs'
 import { TestScheduler } from 'rxjs/testing'
 import {
-  _elements,
   Effect,
   IdentifiedAction,
   IdentifiedArray,
@@ -17,8 +15,7 @@ import {
   Store,
   TcaState,
 } from '..'
-import { areEqual, hash } from './internal'
-import { RootStore } from './root-store'
+import { areEqual } from './internal'
 
 class State extends TcaState {
   counter: Property<number> = 0
@@ -390,151 +387,14 @@ test('scope, temp test to be refactored 3', (t) => {
     ParentAction('children'),
   )
 
-  class Cls {
-    p = IdentifiedArray.from([], (el: { id: number }) => el.id)
-
-    constructor() {
-      Object.defineProperty(this, immerable, { value: true })
-    }
-  }
-
-  const obj = new Cls()
-  //  Object.defineProperty(obj.a!.b!, 'c', { enumerable: true, value: new Set() })
-  //  t.deepEqual(obj, { a:{ b:{ data:'' } } })
-
-  const res = produce(obj, (draft) => {
-    draft.p = IdentifiedArray.from([], (el: { id: number }) => el.id)
-  })
-
-  console.log(
-    'jaksjkdsakjdaskajdsjkadskj',
-    t.deepEqual(res, obj),
-    hash(res),
-    hash(obj),
-    Object.getOwnPropertyNames(res.p),
-    Object.getOwnPropertyNames(obj.p),
-  )
-
-  console.log('[[[[[imer]]]]]', obj.p, '-', res.p, '-')
-
   t.deepEqual(childStores.length, 0)
 
   store.send(ParentAction.increment())
-  t.deepEqual(store.state, new ParentState(1, IdentifiedArray.empty()))
+  //t.deepEqual(store.state, new ParentState(1, IdentifiedArray.empty()))
   t.true(areEqual(store.state, new ParentState(1, IdentifiedArray.empty())))
 
-  console.log('DBUGGGO [0]', store.state, store.state.children)
-
-  const record = new Set<string>()
-
-  function ignorable<O extends object>(clas: O, prop: keyof O & string) {
-    void clas
-    void prop
-
-    record.add(prop)
-  }
-
-  function custom<O extends { new (...args: any[]): object }>(clas: O) {
-    void clas
-
-    for (const p of record) {
-      delete clas[p as keyof O]
-    }
-
-    return new Proxy(clas, {
-      construct(_, args) {
-        console.log('construct', arguments)
-        const res = new clas(...args)
-        const storage: Partial<Record<string, unknown>> = {}
-        for (const p of record) {
-          storage[p] = res[p as keyof typeof res]
-          delete res[p as keyof typeof res]
-        }
-
-        return new Proxy(res, {
-          get(target, prop) {
-            if (prop in target) {
-              return target[prop as keyof typeof prop]
-            }
-
-            return storage[prop as keyof typeof storage]
-          },
-          set(target, prop, newValue) {
-            if (prop in target) {
-              target[prop as keyof typeof prop] = newValue
-            }
-
-            storage[prop as keyof typeof storage] = newValue
-            return true
-          },
-        })
-      },
-      defineProperty() {
-        console.log('defineProperty', arguments)
-        return undefined as any
-      },
-    })
-
-    /*class extends clas {
-      constructor(...args: any[]) {
-        super(...args)
-
-        for (const p of record) {
-          let storage = this[p as keyof typeof this]
-    
-          Object.defineProperty(this, p, {
-            configurable: false,
-            enumerable: false,
-            get() { return storage },
-            set(newValue) { storage = newValue },
-          })      
-        }
-      }
-    }*/
-  }
-
-  @custom
-  class Tester {
-    public a: string
-
-    @ignorable
-    public b: string
-
-    constructor(a: string, b: string) {
-      this.a = a
-      this.b = b
-    }
-  }
-
-  const t1 = new Tester('hello', 'gg')
-  const t2 = new Tester('hello', 'wp')
-  console.log(
-    'the maigc?',
-    t.deepEqual(t1, t2),
-    hash(t1),
-    hash(t2),
-    Object.getOwnPropertyNames(t1),
-    t1.a,
-    t1.b,
-    t2.a,
-    t2.b,
-  )
-  t2.b = 'andrea'
-  console.log('the maigc 2?', t1.a, t1.b, t2.a, t2.b, areEqual(t1, t2))
-
   store.send(ParentAction.populateChild())
-  console.log(
-    'DBUGGGO [1]',
-    store.state,
-    store.state.children,
-    (
-      (store as unknown as { rootStore: RootStore }).rootStore.state as {
-        children: { [_elements]: object }
-      }
-    ).children[_elements].constructor,
-  )
   //t.deepEqual(store.state, new ParentState(1, IdentifiedArray.empty()))
-  console.log('access')
   t.true(
     areEqual(
       store.state,
@@ -546,7 +406,6 @@ test('scope, temp test to be refactored 3', (t) => {
       ),
     ),
   )
-  console.log('end access')
 
   store.send(ParentAction.populateChild())
   // t.deepEqual(store.state, new ParentState(1, IdentifiedArray.empty()))
