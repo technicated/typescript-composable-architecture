@@ -6,10 +6,8 @@ import {
   makeEnum1,
 } from '@technicated/ts-enums'
 import { map, Observable } from 'rxjs'
-import { IdentifiedArray } from './identified-array'
 import { KeyPath } from './keypath'
 import { buildReducer, ReducerBuilder } from './reducer'
-import { IdentifiedAction } from './reducers'
 import { RootStore } from './root-store'
 import { isTcaState, TcaState } from './state'
 
@@ -71,6 +69,20 @@ const PartialToState = makeEnum1<PartialToStateHKT>({
   proto: PartialToStateProto,
 })
 
+class ToState<State extends object, ChildState> {
+  readonly base: PartialToState<ChildState>
+
+  constructor(
+    value: ((state: State) => ChildState) | KeyPath<State, ChildState>,
+  ) {
+    if (value instanceof KeyPath) {
+      this.base = PartialToState.keyPath(value)
+    } else {
+      this.base = PartialToState.closure((state) => value(state as State))
+    }
+  }
+}
+
 const internal = Symbol()
 type Internal = typeof internal
 
@@ -82,6 +94,15 @@ type StoreCtorArgs<State extends TcaState, Action> =
       toState: PartialToState<State>,
       fromAction: (action: Action) => unknown,
     ]
+
+// class StoreCollection {
+//   constructor(
+//     private readonly store: Store<
+//       IdentifiedArray<ID, State> & TcaState,
+//       IdentifiedAction<ID, Action>
+//     >,
+//   ) {}
+// }
 
 export class Store<State extends TcaState, Action> {
   private readonly rootStore: RootStore
@@ -125,7 +146,7 @@ export class Store<State extends TcaState, Action> {
     }
   }
 
-  scope<
+  /*scope<
     State extends TcaState,
     Action extends EnumShape,
     ChildState extends TcaState,
@@ -197,9 +218,68 @@ export class Store<State extends TcaState, Action> {
         (action) => toAction.embed(IdentifiedAction.element({ id, action })),
       )
     })
-  }
+  }*/
 
   send(action: Action): void {
     this.rootStore.send(this.fromAction(action))
   }
+
+  /**
+   * @internal
+   */
+  _scope<ChildState extends TcaState, ChildAction>(
+    state: ToState<State, ChildState>,
+    fromChildAction: (childAction: ChildAction) => Action,
+  ): Store<ChildState, ChildAction> {
+    return new Store(
+      internal,
+      this.rootStore,
+      this.toState.appending(state.base),
+      (action) => this.fromAction(fromChildAction(action)),
+    )
+  }
+
+  scope<
+    State extends TcaState,
+    Action extends EnumShape,
+    ChildState extends TcaState,
+    ChildAction,
+  >(
+    this: Store<State, Action>,
+    state: KeyPath<State, ChildState>,
+    action: CasePath<Action, ChildAction>,
+  ): Store<ChildState, ChildAction> {
+    return this._scope(new ToState(state), action.embed)
+  }
+
+  ifScope<
+    State extends TcaState,
+    Action extends EnumShape,
+    ChildState extends TcaState,
+    ChildAction,
+  >(
+    this: Store<State, Action>,
+    state: KeyPath<State, ChildState | null>,
+    action: CasePath<Action, ChildAction>,
+  ): Store<ChildState, ChildAction> | null {
+    const optChildState = state.get(this.state)
+
+    if (optChildState === null) {
+      return null
+    }
+
+    let childState = optChildState
+
+    return this._scope(
+      new ToState((asd) => {
+        childState = state.get(asd) ?? childState
+        return childState
+      }),
+      action.embed,
+    )
+  }
+
+  // forEachScope(): StoreCollection {
+  //   return new StoreCollection()
+  // }
 }

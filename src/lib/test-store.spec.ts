@@ -12,6 +12,68 @@ import {
   TestStore,
 } from '..'
 
+test('map comparison', (t) => {
+  // const m1 = new Map()
+  // m1.set(1, 1)
+  // const m2 = new Map()
+  // m2.set('1', 1)
+  // t.deepEqual(m1, m2)  
+
+  class IdentifiedArray<ID, Element> {
+    static init<
+      ID,
+      Element extends { id: ID },
+    >(
+      elements: Iterable<NonNullable<Element>>,
+    ): IdentifiedArray<ID, Element>
+    static init<
+      ID,
+      Element,
+    >(
+      id: (element: Element) => ID,
+      elements: Iterable<NonNullable<Element>>,
+    ): IdentifiedArray<ID, Element>
+    static init<ID, Element>(...args: unknown[]): IdentifiedArray<ID, Element> {
+      if (args.length === 2) {
+        return new IdentifiedArray(
+          args[0] as unknown as (element: Element) => ID,
+          args[1] as unknown as Iterable<NonNullable<Element>>,
+        )
+      } else {
+        return new IdentifiedArray(
+          ((e: { id: unknown }) => e.id) as unknown as (element: Element) => ID,
+          args[1] as unknown as Iterable<NonNullable<Element>>,
+        )
+      }
+    }
+
+    private elements: Map<ID, Element> = new Map()
+    #id: (element: Element) => ID
+    private ids: ID[] = []
+
+    private constructor(
+      id: (element: Element) => ID,
+      elements: Iterable<NonNullable<Element>>,
+    ) {
+      this.#id = id
+
+      for (const element of elements) {
+        this.append(element)
+      }
+    }
+
+    append(element: Element): void {
+      const elementId = this.#id(element)
+      this.elements.set(elementId, element)
+      this.ids.push(elementId)
+    }
+  }
+
+  const a = IdentifiedArray.init((e) => e, [3, 4, 5])
+  const b = IdentifiedArray.init((e) => parseInt(e as string), [3, 4, '5'])
+  t.deepEqual(a, b)
+})
+
 test('TestStore, no effects', async (t) => {
   class State extends TcaState {
     counter: Property<number> = 0

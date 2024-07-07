@@ -12,8 +12,8 @@ interface Identifiable<ID> {
   id: ID
 }
 
-// prettier-ignore
-export class IdentifiedArray<ID, Element> implements HasCustomEquality, HasCustomHash
+export class IdentifiedArray<ID, Element>
+implements HasCustomEquality, HasCustomHash
 {
   static empty<Element extends Identifiable<unknown>>(): IdentifiedArray<
     Element['id'],

@@ -4,8 +4,6 @@ import { delay, of } from 'rxjs'
 import { TestScheduler } from 'rxjs/testing'
 import {
   Effect,
-  IdentifiedAction,
-  IdentifiedArray,
   KeyPath,
   Property,
   Reduce,
@@ -15,7 +13,6 @@ import {
   Store,
   TcaState,
 } from '..'
-import { areEqual } from './internal'
 
 class State extends TcaState {
   counter: Property<number> = 0
@@ -300,7 +297,7 @@ test('scope, temp test to be refactored 2', (t) => {
   t.deepEqual(childCount, 3)
 })
 
-test('scope, temp test to be refactored 3', (t) => {
+/*test('scope, temp test to be refactored 3', (t) => {
   class ChildState extends TcaState {
     constructor(
       public readonly id = Math.random(),
@@ -450,4 +447,4 @@ test('scope, temp test to be refactored 3', (t) => {
 
   t.deepEqual(count, 3)
   t.deepEqual(childrenCount, [3])
-})
+})*/
