@@ -17,19 +17,13 @@ test('map comparison', (t) => {
   // m1.set(1, 1)
   // const m2 = new Map()
   // m2.set('1', 1)
-  // t.deepEqual(m1, m2)  
+  // t.deepEqual(m1, m2)
 
   class IdentifiedArray<ID, Element> {
-    static init<
-      ID,
-      Element extends { id: ID },
-    >(
+    static init<ID, Element extends { id: ID }>(
       elements: Iterable<NonNullable<Element>>,
     ): IdentifiedArray<ID, Element>
-    static init<
-      ID,
-      Element,
-    >(
+    static init<ID, Element>(
       id: (element: Element) => ID,
       elements: Iterable<NonNullable<Element>>,
     ): IdentifiedArray<ID, Element>

@@ -21,16 +21,7 @@
     "sandboxed",
     "transpiled",
     "typedoc",
-    "untracked",
-
-    "hashability",
-    "hashable",
-    "hasher",
-    "immer",
-    "immerable",
-    "pointfreeco",
-    "technicated",
-    "uuidv"
+    "untracked"
   ],
   "flagWords": [],
   "ignorePaths": [

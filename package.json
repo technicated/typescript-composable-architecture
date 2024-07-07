@@ -75,5 +75,8 @@
     "exclude": [
       "**/*.spec.js"
     ]
+  },
+  "peerDependencies": {
+    "@angular/core": "^18.0.0"
   }
 }
